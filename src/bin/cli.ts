@@ -1,6 +1,9 @@
 #! /usr/bin/env node
 import * as fs from 'fs';
+import * as path from 'path';
 import { stdout } from 'process';
+
+import { staticbuild } from '..';
 
 const ERROR_CODE = {
   SUCCESS: 0,
@@ -68,12 +71,12 @@ async function main() {
     return ERROR_CODE.FAILED_T0_READ_LOCAL_FILE;
   }
 
-  // @ts-ignore
-  // staticbuild({
-  // inputPath: path.join(process.cwd(), sourcePath),
-  // outputPath: path.join(process.cwd(), destinationPath),
-  // ...options
-  // });
+  staticbuild({
+    inputDirectory: path.join(process.cwd(), inputDirectory),
+    outputDirectory: path.join(process.cwd(), outputDirectory),
+    configPath: path.join(process.cwd(), '.staticbuildrc.js'),
+    ...options,
+  });
 }
 
 main();
