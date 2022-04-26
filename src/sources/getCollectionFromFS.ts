@@ -140,6 +140,7 @@ export default async function getCollectionFromFS(
     const page: Page = {
       title,
       slug,
+      layout: options.defaultLayout,
       date: new Date(date),
       collection: options.name,
       outputPath,
