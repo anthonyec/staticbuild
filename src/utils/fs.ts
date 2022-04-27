@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises';
-import { constants } from 'fs';
+import { constants, Dirent } from 'fs';
+import * as path from 'path';
 
 const IGNORED_FILES = ['.DS_Store'];
 
@@ -27,20 +28,54 @@ export async function checkFileExists(filePath: string) {
 }
 
 /** Return names of all directories found at the specified path. */
-export async function getDirectoryNames(path: string): Promise<string[]> {
-  const entries = await fs.readdir(path, { withFileTypes: true });
+export async function getDirectoryNames(
+  directoryPath: string
+): Promise<string[]> {
+  const entries = await fs.readdir(directoryPath, { withFileTypes: true });
 
   return entries
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
 }
 
-/** Return names of all files found at the specified path. */
-export async function getFileNames(path: string): Promise<string[]> {
-  const entries = await fs.readdir(path, { withFileTypes: true });
+/** Return names of all files found at the specified directoryPath. */
+export async function getFileNames(directoryPath: string): Promise<string[]> {
+  const entries = await fs.readdir(directoryPath, { withFileTypes: true });
 
   return entries
     .filter((entry) => entry.isFile())
     .filter((entry) => !IGNORED_FILES.includes(entry.name))
     .map((entry) => entry.name);
+}
+
+export async function recursiveReadDirectory(
+  directoryPath: string
+): Promise<string[]> {
+  async function scan(targetDirectoryPath: string) {
+    const files: string[] = [];
+    const entries = await fs.readdir(targetDirectoryPath, {
+      withFileTypes: true,
+    });
+
+    for await (const entry of entries) {
+      const entryPath = path.join(targetDirectoryPath, entry.name);
+
+      if (IGNORED_FILES.includes(entry.name)) {
+        continue;
+      }
+
+      if (entry.isDirectory()) {
+        const subDirectoryFiles = await scan(entryPath);
+        files.push(...subDirectoryFiles);
+      }
+
+      if (entry.isFile()) {
+        files.push(entryPath);
+      }
+    }
+
+    return files;
+  }
+
+  return await scan(directoryPath);
 }
