@@ -130,7 +130,7 @@ export default async function getCollectionFromFS(
     const content = markdown.parse(markdownFileContents);
     const title = getTitleFromHTML(content);
     const date = getDateFromFilename(file);
-    const [headers, contentWithoutCommentProps] =
+    const [props, contentWithoutCommentProps] =
       getCommentPropsFromContent(content);
     const slug = file.replace(`${date}-`, '');
     const outputPath = path
@@ -150,7 +150,7 @@ export default async function getCollectionFromFS(
       assets: [],
 
       // Page comment props can override anything, so be careful (or have fun)!
-      ...headers,
+      ...props,
     };
 
     pages.push(page);
