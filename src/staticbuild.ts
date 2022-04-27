@@ -4,6 +4,7 @@ import * as mustache from 'mustache';
 
 import { getUserConfig } from './config';
 import { getLayoutsFromFS } from './sources/getLayoutsFromFS';
+import { getFunctionsFromFS } from './sources/getFunctionsFromFS';
 
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */
@@ -17,15 +18,51 @@ interface StaticBuildOptions {
 }
 
 interface BuildPagesOptions {
-  // /** Specify an input folder containing website source files */
-  // inputDirectory: string;
-  // /** Specify an output folder for the website to be built to */
-  // outputDirectory: string;
   pages: Page[];
   layouts?: {
     [key: string]: string;
   };
-  // onBuildPage?: () => void
+  partials?: {
+    [key: string]: string;
+  };
+  functions?: {
+    [key: string]: () => any; // TODO: Type?
+  },
+  collections?: {
+    [key: string]: Page[];
+  },
+  data?: {
+    // TODO: Add better types.
+    [key: string]: object | ((templateGlobal: TemplateGlobal) => object);
+  }
+}
+
+// TODO: Come up with name and type for this global view thingy.
+// Equivalent to supplied data in Eleventry:
+// https://www.11ty.dev/docs/data-eleventy-supplied/#eleventy-supplied-data
+interface TemplateGlobal {
+  env: object;
+  data: object;
+  functions: object;
+  collections: object;
+  page: Page;
+}
+
+function executeGetters(templateGlobal: TemplateGlobal, data: Pick<BuildPagesOptions, 'data'>) {
+  const newData: { [key: string]: object } = {};
+
+  for (const key in data) {
+    // @ts-ignore
+    const value = data[key];
+
+    if (typeof value === 'function') {
+      newData[key] = value(templateGlobal);
+    } else {
+      newData[key] = value;
+    }
+  }
+
+  return newData;
 }
 
 async function buildPages(options: BuildPagesOptions) {
@@ -39,12 +76,59 @@ async function buildPages(options: BuildPagesOptions) {
         ? options.layouts[page.layout]
         : DEFAULT_EMPTY_LAYOUT; // Default empty layout.
 
-    const pageView = { page };
-    const renderedPage = mustache.render(template, pageView);
+    // TODO: Clean this up and document it. Is this hte best way to do it?
+    const templateGlobalsBeforeGettersExecuted: TemplateGlobal = {
+      env: {},
+      data: {
+        ...options.data
+      },
+      functions: {
+        // TODO: Should the object be remade like this? Or should it reuse
+        // the reference like `functions: options.functions`?
+        ...options.functions
+      },
+      collections: {
+        ...options.collections
+      },
+      page,
+    };
+
+    const executedDataGetters = executeGetters(
+      templateGlobalsBeforeGettersExecuted,
+      templateGlobalsBeforeGettersExecuted.data
+    );
+
+    const templateGlobals: TemplateGlobal = {
+      ...templateGlobalsBeforeGettersExecuted,
+      data: {
+        ...templateGlobalsBeforeGettersExecuted.data,
+        ...executedDataGetters
+      }
+    }
+
+    const renderedPage = mustache.render(template, templateGlobals, options.partials);
 
     await fs.mkdir(outputDirectory, { recursive: true });
     await fs.writeFile(page.outputPath, renderedPage, 'utf8');
   }
+}
+
+// TODO: Rewrite and tidy up.
+function getCollectionsFromPages(pages: Page[]): { [key: string]: Page[] } {
+  return pages.reduce((acc, page) => {
+    if (page.collection) {
+      // @ts-ignore
+      if (!acc[page.collection]) {
+        // @ts-ignore
+        acc[page.collection] = [page];
+      } else {
+        // @ts-ignore
+        acc[page.collection].push(page);
+      }
+    }
+
+    return acc;
+  }, {});
 }
 
 export default async function staticbuild(options: StaticBuildOptions) {
@@ -53,16 +137,19 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
   // await resetOutputDirectory(options.outputDirectory);
 
-  // const functions = await getFunctionsFromFS(config.directories?.functions);
+  // const hooks = await getFunctionsFromFS(config.directories.hooks);
+  const functions = await getFunctionsFromFS(config.directories.functions);
+  const data = await getFunctionsFromFS(config.directories.data);
   const layouts = await getLayoutsFromFS(config.directories.layouts);
-  // const partials = await getPartialsFromFS(config.directories?.partials);
+  const partials = await getLayoutsFromFS(config.directories.partials);
+
   // const data = await getDataFromFS(config.directories?.data);
-  // const hooks = await getHooksFromFS(config.directories?.hooks);
   console.timeEnd('setup');
 
   console.time('source');
   const pages = await config.getPages();
-  const assets = await config.getAssets();
+  // const assets = await config.getAssets();
+  const collections = getCollectionsFromPages(pages);
   console.timeEnd('source');
 
   // console.time('copy');
@@ -74,10 +161,13 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
   console.time('build');
   await buildPages({
-    // inputDirectory: options.inputDirectory,
-    // outputDirectory: options.outputDirectory,
     pages,
     layouts,
+    partials,
+    functions,
+    collections,
+    data
   });
   console.timeEnd('build');
+  // hooks.onPostBuild();
 }
