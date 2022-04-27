@@ -1,3 +1,5 @@
+import { requireUncached } from "./utils/fs";
+
 interface Config {
   directories: {
     layouts: string;
@@ -21,11 +23,6 @@ const DEFAULT_CONFIG: Config = {
   getPages: () => [],
   getAssets: () => [],
 };
-
-function requireUncached<T>(module: string): T {
-  delete require.cache[require.resolve(module)];
-  return require(module);
-}
 
 export function getUserConfig(configPath: string): Config {
   const userConfig = requireUncached<Config>(configPath);

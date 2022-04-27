@@ -3,6 +3,11 @@ import { constants } from 'fs';
 
 const IGNORED_FILES = ['.DS_Store'];
 
+export function requireUncached<T>(module: string): T {
+  delete require.cache[require.resolve(module)];
+  return require(module);
+}
+
 /** Returns `true` if a file exists, otherwise `false`. */
 export async function checkFileExists(filePath: string) {
   try {
