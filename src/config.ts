@@ -1,4 +1,4 @@
-import { requireUncached } from "./utils/fs";
+import { requireUncached } from './utils/fs';
 
 interface Config {
   directories: {

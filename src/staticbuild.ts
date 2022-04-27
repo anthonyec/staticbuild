@@ -19,6 +19,7 @@ interface StaticBuildOptions {
 
 interface BuildPagesOptions {
   pages: Page[];
+  // TODO: Should all these options be optional?
   layouts?: {
     [key: string]: string;
   };
@@ -26,15 +27,15 @@ interface BuildPagesOptions {
     [key: string]: string;
   };
   functions?: {
-    [key: string]: () => any; // TODO: Type?
-  },
+    [key: string]: () => () => unknown; // TODO: Type?
+  };
   collections?: {
     [key: string]: Page[];
-  },
+  };
   data?: {
     // TODO: Add better types.
     [key: string]: object | ((templateGlobal: TemplateGlobal) => object);
-  }
+  };
 }
 
 // TODO: Come up with name and type for this global view thingy.
@@ -48,7 +49,11 @@ interface TemplateGlobal {
   page: Page;
 }
 
-function executeGetters(templateGlobal: TemplateGlobal, data: Pick<BuildPagesOptions, 'data'>) {
+// TODO: Give it a better name.
+function executeGetters(
+  templateGlobal: TemplateGlobal,
+  data: Pick<BuildPagesOptions, 'data'>
+) {
   const newData: { [key: string]: object } = {};
 
   for (const key in data) {
@@ -76,19 +81,19 @@ async function buildPages(options: BuildPagesOptions) {
         ? options.layouts[page.layout]
         : DEFAULT_EMPTY_LAYOUT; // Default empty layout.
 
-    // TODO: Clean this up and document it. Is this hte best way to do it?
+    // TODO: Clean this up and document it. Is this the best way to do it?
     const templateGlobalsBeforeGettersExecuted: TemplateGlobal = {
       env: {},
       data: {
-        ...options.data
+        ...options.data,
       },
       functions: {
         // TODO: Should the object be remade like this? Or should it reuse
         // the reference like `functions: options.functions`?
-        ...options.functions
+        ...options.functions,
       },
       collections: {
-        ...options.collections
+        ...options.collections,
       },
       page,
     };
@@ -102,11 +107,15 @@ async function buildPages(options: BuildPagesOptions) {
       ...templateGlobalsBeforeGettersExecuted,
       data: {
         ...templateGlobalsBeforeGettersExecuted.data,
-        ...executedDataGetters
-      }
-    }
+        ...executedDataGetters,
+      },
+    };
 
-    const renderedPage = mustache.render(template, templateGlobals, options.partials);
+    const renderedPage = mustache.render(
+      template,
+      templateGlobals,
+      options.partials
+    );
 
     await fs.mkdir(outputDirectory, { recursive: true });
     await fs.writeFile(page.outputPath, renderedPage, 'utf8');
@@ -138,6 +147,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
   // await resetOutputDirectory(options.outputDirectory);
 
   // const hooks = await getFunctionsFromFS(config.directories.hooks);
+  // TODO: Is it possible for these functions to use a shared sourcing func?
   const functions = await getFunctionsFromFS(config.directories.functions);
   const data = await getFunctionsFromFS(config.directories.data);
   const layouts = await getLayoutsFromFS(config.directories.layouts);
@@ -166,7 +176,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
     partials,
     functions,
     collections,
-    data
+    data,
   });
   console.timeEnd('build');
   // hooks.onPostBuild();

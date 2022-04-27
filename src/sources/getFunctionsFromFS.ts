@@ -11,7 +11,11 @@ export async function getFunctionsFromFS(functionsDirectory: string) {
     const { name } = path.parse(functionFilename);
 
     // TODO: Find out why we need to use process.cwd() for require and not readFile.
-    const functionPath = path.join(process.cwd(), functionsDirectory, functionFilename);
+    const functionPath = path.join(
+      process.cwd(),
+      functionsDirectory,
+      functionFilename
+    );
 
     // TODO: Could this be cached instead?
     const func = requireUncached(functionPath);
