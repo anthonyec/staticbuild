@@ -42,7 +42,9 @@ interface BuildPagesOptions {
 // Equivalent to supplied data in Eleventry:
 // https://www.11ty.dev/docs/data-eleventy-supplied/#eleventy-supplied-data
 interface TemplateGlobal {
-  env: object;
+  env: {
+    devMode: boolean;
+  };
   data: object;
   functions: object;
   collections: object;
@@ -83,7 +85,9 @@ async function buildPages(options: BuildPagesOptions) {
 
     // TODO: Clean this up and document it. Is this the best way to do it?
     const templateGlobalsBeforeGettersExecuted: TemplateGlobal = {
-      env: {},
+      env: {
+        devMode: process.env.NODE_ENV === 'dev',
+      },
       data: {
         ...options.data,
       },
