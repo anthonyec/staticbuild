@@ -2,7 +2,11 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as markdown from 'markdown-wasm';
 
-import { checkFileExists, getDirectoryNames } from '../utils/fs';
+import {
+  checkFileExists,
+  getDirectoryNames,
+  recursiveReadDirectory,
+} from '../utils/fs';
 
 interface CollectionOptions {
   /** Name of the collection */
@@ -137,6 +141,26 @@ export default async function getCollectionFromFS(
       .join(options.outputDirectory, 'index.html')
       .replaceAll('{{slug}}', slug);
 
+    const assetPaths = await recursiveReadDirectory(path.join(options.inputDirectory, file));
+    const assetsWithoutMarkdownFile = assetPaths.filter((assetPath) => {
+      return assetPath !== markdownFilePath;
+    });
+
+    // TODO: Tidy this up, especially the stuff with repeated {{slug}} path construction.
+    const assets = assetsWithoutMarkdownFile.map((assetPath): Asset => {
+      const assetPathRelativeToCollection = path.relative(path.join(
+        options.inputDirectory,
+        file
+      ), assetPath);
+      const assetFileName = path.basename(assetPath);
+
+      return {
+        filename: assetFileName,
+        inputPath: assetPath,
+        outputPath: path.join(options.outputDirectory.replaceAll('{{slug}}', slug), assetPathRelativeToCollection)
+      }
+    });
+
     const page: Page = {
       title,
       slug,
@@ -145,9 +169,7 @@ export default async function getCollectionFromFS(
       collection: options.name,
       outputPath,
       content: contentWithoutCommentProps,
-
-      // TODO: Get assets for real.
-      assets: [],
+      assets,
 
       // Page comment props can override anything, so be careful (or have fun)!
       ...props,
