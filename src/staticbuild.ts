@@ -20,29 +20,27 @@ interface StaticBuildOptions {
 
 interface BuildPagesOptions {
   pages: Page[];
-  // TODO: Should all these options be optional?
-  layouts?: {
-    [key: string]: string;
+  layouts: {
+    [name: string]: string;
   };
-  partials?: {
-    [key: string]: string;
+  partials: {
+    [name: string]: string;
   };
-  functions?: {
-    [key: string]: () => () => unknown; // TODO: Type?
+  functions: {
+    [name: string]: () => () => unknown; // TODO: Type?
   };
-  collections?: {
-    [key: string]: Page[];
+  collections: {
+    [name: string]: Page[];
   };
-  data?: {
+  data: {
     // TODO: Add better types.
-    [key: string]: object | ((templateGlobal: TemplateGlobal) => object);
+    [name: string]: object | ((globals: Globals) => object);
   };
 }
 
-// TODO: Come up with name and type for this global view thingy.
 // Equivalent to supplied data in Eleventry:
 // https://www.11ty.dev/docs/data-eleventy-supplied/#eleventy-supplied-data
-interface TemplateGlobal {
+interface Globals {
   env: {
     devMode: boolean;
   };
@@ -52,25 +50,39 @@ interface TemplateGlobal {
   page: Page;
 }
 
-// TODO: Give it a better name.
-function executeGetters(
-  templateGlobal: TemplateGlobal,
-  data: Pick<BuildPagesOptions, 'data'>
-) {
-  const newData: { [key: string]: object } = {};
+function getObjectWithFunctionsInvoked<T, A>(
+  object: T,
+  invokedFunctionArgument: A
+): T {
+  const clonedObject: T = { ...object };
 
-  for (const key in data) {
-    // @ts-ignore
-    const value = data[key];
+  for (const key in clonedObject) {
+    const value = clonedObject[key];
 
     if (typeof value === 'function') {
-      newData[key] = value(templateGlobal);
-    } else {
-      newData[key] = value;
+      clonedObject[key] = value(invokedFunctionArgument);
     }
   }
 
-  return newData;
+  return clonedObject;
+}
+
+function withComputedValues<T>(
+  namespacesToCompute: string[],
+  originalStructure: T
+): T {
+  const clonedOriginalStructure: T = { ...originalStructure };
+
+  for (const namespace of namespacesToCompute) {
+    // As keyof T solution found here:
+    // https://stackoverflow.com/questions/55012174/why-doesnt-object-keys-return-a-keyof-type-in-typescript/55012175#55012175
+    const namespaceObject = clonedOriginalStructure[namespace as keyof T];
+
+    clonedOriginalStructure[namespace as keyof T] =
+      getObjectWithFunctionsInvoked(namespaceObject, originalStructure);
+  }
+
+  return clonedOriginalStructure;
 }
 
 async function buildPages(options: BuildPagesOptions) {
@@ -78,49 +90,20 @@ async function buildPages(options: BuildPagesOptions) {
 
   for await (const page of options.pages) {
     const outputDirectory = path.dirname(page.outputPath);
-
     const template =
-      page.layout && options.layouts && options.layouts[page.layout]
-        ? options.layouts[page.layout]
-        : DEFAULT_EMPTY_LAYOUT; // Default empty layout.
+      (page.layout && options.layouts[page.layout]) || DEFAULT_EMPTY_LAYOUT;
 
-    // TODO: Clean this up and document it. Is this the best way to do it?
-    const templateGlobalsBeforeGettersExecuted: TemplateGlobal = {
+    const globals: Globals = withComputedValues<Globals>(['data'], {
       env: {
-        devMode: process.env.NODE_ENV === 'dev',
+        devMode: process.env.NODE_ENV === 'dev'
       },
-      data: {
-        ...options.data,
-      },
-      functions: {
-        // TODO: Should the object be remade like this? Or should it reuse
-        // the reference like `functions: options.functions`?
-        ...options.functions,
-      },
-      collections: {
-        ...options.collections,
-      },
-      page,
-    };
+      functions: options.functions,
+      collections: options.collections,
+      data: options.data,
+      page
+    });
 
-    const executedDataGetters = executeGetters(
-      templateGlobalsBeforeGettersExecuted,
-      templateGlobalsBeforeGettersExecuted.data
-    );
-
-    const templateGlobals: TemplateGlobal = {
-      ...templateGlobalsBeforeGettersExecuted,
-      data: {
-        ...templateGlobalsBeforeGettersExecuted.data,
-        ...executedDataGetters,
-      },
-    };
-
-    const renderedPage = mustache.render(
-      template,
-      templateGlobals,
-      options.partials
-    );
+    const renderedPage = mustache.render(template, globals, options.partials);
 
     await fs.mkdir(outputDirectory, { recursive: true });
     await fs.writeFile(page.outputPath, renderedPage, 'utf8');
