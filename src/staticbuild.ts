@@ -101,48 +101,64 @@ async function cleanOutputDirectory(
   await deleteFiles(unexpectedOutputPathsAbsolute, outputDirectory);
 }
 
-export default async function staticbuild(options: StaticBuildOptions) {
-  console.time('setup');
-  const config = getUserConfig(options.configPath);
+function getAssetsFilteredByChanges(
+  inputDirectory: string,
+  assets: Asset[],
+  changedPaths: string[] = []
+) {
+  return assets.filter((asset) => {
+    // TODO: Is there a way to be consistent with what paths include?
+    // This code is getting rid of the `_src/` part from the `asset.inputPath`.
+    const relativeAssetInputPath = path.relative(
+      inputDirectory,
+      asset.inputPath
+    );
+    const absoluteAssetInputPath = path.join(
+      inputDirectory,
+      relativeAssetInputPath
+    );
 
-  // const hooks = await getFunctionsFromFS(config.directories.hooks);
-  // TODO: Is it possible for these functions to use a shared sourcing func?
-  // TODO: Add checks that paths exist.
-  const functions = await getFunctionsFromFS(config.directories.functions);
-  const data = await getFunctionsFromFS(config.directories.data);
-  const layouts = await getLayoutsFromFS(config.directories.layouts);
-  const partials = await getLayoutsFromFS(config.directories.partials);
-  console.timeEnd('setup');
-
-  console.time('source');
-  // TODO: Add check that `getPages` and `getAssets` return arrays.
-  // Maybe even warn when they return empty array.
-  const pages = await config.getPages();
-  const assets = await config.getAssets();
-  const collections = getCollectionsFromPages(pages);
-  console.timeEnd('source');
-
-  console.time('copy');
-  const assetsFromPages = getAssetsFromPages(pages);
-  // const assetsToCopy = await getAssetsFilteredByChanges([...assets, ...assetsFromPages], changeList);
-
-  await copyAssets([...assets, ...assetsFromPages]);
-  console.timeEnd('copy');
-
-  console.time('render');
-  await renderPages({
-    pages,
-    layouts,
-    partials,
-    functions,
-    collections,
-    data
+    return changedPaths.includes(absoluteAssetInputPath);
   });
-  console.timeEnd('render');
+}
 
-  console.time('clean');
-  await cleanOutputDirectory(options.outputDirectory, pages, assetsFromPages);
-  console.timeEnd('clean');
+export default async function staticbuild(options: StaticBuildOptions) {
+  // TODO: Think of a better name for `onlyChangeForPaths` and make consistent.
+  async function build(onlyChangeForPaths?: string[]) {
+    console.time('setup');
+    const config = getUserConfig(options.configPath);
+
+    // const hooks = await getFunctionsFromFS(config.directories.hooks);
+    // TODO: Is it possible for these functions to use a shared sourcing func?
+    // TODO: Add checks that paths exist.
+    const functions = await getFunctionsFromFS(config.directories.functions);
+    const data = await getFunctionsFromFS(config.directories.data);
+    const layouts = await getLayoutsFromFS(config.directories.layouts);
+    const partials = await getLayoutsFromFS(config.directories.partials);
+    console.timeEnd('setup');
+
+    console.time('source');
+    // TODO: Add check that `getPages` and `getAssets` return arrays.
+    // Maybe even warn when they return empty array.
+    const pages = await config.getPages();
+    const assets = await config.getAssets();
+    const collections = getCollectionsFromPages(pages);
+    console.timeEnd('source');
+
+    console.time('copy');
+
+    const assetsFromPages = getAssetsFromPages(pages);
+    const assetsToCopy = await getAssetsFilteredByChanges(
+      options.inputDirectory,
+      [...assets, ...assetsFromPages],
+      onlyChangeForPaths
+    );
+
+    if (onlyChangeForPaths) {
+      await copyAssets(assetsToCopy);
+    } else {
+      await copyAssets([...assets, ...assetsFromPages]);
+    }
 
     console.timeEnd('copy');
 
