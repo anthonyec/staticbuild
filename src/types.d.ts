@@ -25,3 +25,15 @@ interface Page {
   /** Related files to be copied with the page */
   assets?: Asset[];
 }
+
+// Equivalent to supplied data in Eleventry:
+// https://www.11ty.dev/docs/data-eleventy-supplied/#eleventy-supplied-data
+interface RenderGlobals {
+  env: {
+    devMode: boolean;
+  };
+  data: object;
+  functions: object;
+  collections: object;
+  page: Page;
+}
