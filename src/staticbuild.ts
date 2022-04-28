@@ -6,6 +6,7 @@ import { getLayoutsFromFS } from './sources/getLayoutsFromFS';
 import { getFunctionsFromFS } from './sources/getFunctionsFromFS';
 import { renderPages } from './renderPages';
 import { deleteFiles, recursiveReadDirectory } from './utils/fs';
+import { watchDirectoryForChanges } from './watchDirectoryForChanges';
 
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */
@@ -143,5 +144,32 @@ export default async function staticbuild(options: StaticBuildOptions) {
   await cleanOutputDirectory(options.outputDirectory, pages, assetsFromPages);
   console.timeEnd('clean');
 
+    console.timeEnd('copy');
+
+    console.time('render');
+    await renderPages({
+      pages,
+      layouts,
+      partials,
+      functions,
+      collections,
+      data
+    });
+    console.timeEnd('render');
+
+    console.time('clean');
+    await cleanOutputDirectory(options.outputDirectory, pages, assetsFromPages);
+    console.timeEnd('clean');
+  }
+
+  await build();
+
+  await watchDirectoryForChanges(
+    options.inputDirectory,
+    async (changedFilePaths) => {
+      console.log('---');
+      await build(changedFilePaths);
+    }
+  );
   // hooks.onPostBuild();
 }
