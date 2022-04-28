@@ -146,7 +146,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.timeEnd('source');
 
     console.time('copy');
-
     const assetsFromPages = getAssetsFromPages(pages);
     const assetsToCopy = await getAssetsFilteredByChanges(
       options.inputDirectory,
@@ -159,7 +158,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
     } else {
       await copyAssets([...assets, ...assetsFromPages]);
     }
-
     console.timeEnd('copy');
 
     console.time('render');
@@ -174,18 +172,23 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.timeEnd('render');
 
     console.time('clean');
+    // TODO: There is a bug with renamed directories leave empty folders around
+    // that don't get deleted.
     await cleanOutputDirectory(options.outputDirectory, pages, assetsFromPages);
     console.timeEnd('clean');
   }
 
   await build();
 
-  await watchDirectoryForChanges(
-    options.inputDirectory,
-    async (changedFilePaths) => {
-      console.log('---');
-      await build(changedFilePaths);
-    }
-  );
-  // hooks.onPostBuild();
+  if (options.watch) {
+    console.log('👀 watching for changes...');
+
+    await watchDirectoryForChanges(
+      options.inputDirectory,
+      async (changedFilePaths) => {
+        console.log('---');
+        await build(changedFilePaths);
+      }
+    );
+  }
 }

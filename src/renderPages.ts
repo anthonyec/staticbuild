@@ -75,6 +75,7 @@ export async function renderPages(options: RenderPageOptions) {
       page
     });
 
+    // TODO: Handle errors from bad templates!
     const renderedPage = mustache.render(template, globals, options.partials);
 
     await fs.mkdir(outputDirectory, { recursive: true });
