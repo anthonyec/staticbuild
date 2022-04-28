@@ -79,3 +79,27 @@ export async function recursiveReadDirectory(
 
   return await scan(directoryPath);
 }
+
+export async function deleteFiles(
+  filePaths: string[],
+  expectedDirectoryToDeleteFrom: string,
+  dryRun?: boolean
+) {
+  for await (const filePath of filePaths) {
+    const isFileInExpectedDirectory = filePath.includes(
+      expectedDirectoryToDeleteFrom
+    );
+
+    if (!isFileInExpectedDirectory) {
+      throw new Error(
+        `Safety checked failed for deleting file at path "${filePath}" that does not include the expected directory "${expectedDirectoryToDeleteFrom}"`
+      );
+    }
+
+    if (dryRun) {
+      console.warn('[dry run] delete:', filePath);
+    } else {
+      await fs.rm(filePath);
+    }
+  }
+}

@@ -1,10 +1,11 @@
 import * as fs from 'fs/promises';
+import * as path from 'path';
 
 import { getUserConfig } from './config';
 import { getLayoutsFromFS } from './sources/getLayoutsFromFS';
 import { getFunctionsFromFS } from './sources/getFunctionsFromFS';
 import { renderPages } from './renderPages';
-import { recursiveReadDirectory } from './utils/fs';
+import { deleteFiles, recursiveReadDirectory } from './utils/fs';
 
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */
@@ -55,11 +56,24 @@ async function copyAssets(assets: Asset[]) {
   }
 }
 
+function getExpectedOutputPaths(
+  outputDirectory: string,
+  pages: Page[],
+  assets: Asset[]
+): string[] {
+  const pageOutputPaths = pages.map((page) =>
+    path.relative(outputDirectory, page.outputPath)
+  );
+  const assetOutputPaths = assets.map((asset) =>
+    path.relative(outputDirectory, asset.outputPath)
+  );
+
+  return [...pageOutputPaths, ...assetOutputPaths];
+}
+
 export default async function staticbuild(options: StaticBuildOptions) {
   console.time('setup');
   const config = getUserConfig(options.configPath);
-
-  // await resetOutputDirectory(options.outputDirectory);
 
   // const hooks = await getFunctionsFromFS(config.directories.hooks);
   // TODO: Is it possible for these functions to use a shared sourcing func?
@@ -94,9 +108,31 @@ export default async function staticbuild(options: StaticBuildOptions) {
   });
   console.timeEnd('render');
 
-  // console.time('clean');
-  // await recursiveReadDirectory(options.inputDirectory);
-  // console.timeEnd('clean')
+  console.time('clean');
+  const outputAbsolutePaths = await recursiveReadDirectory(
+    options.outputDirectory
+  );
+  const actualOutputPaths = outputAbsolutePaths.map((outputPath) => {
+    return path.relative(options.outputDirectory, outputPath);
+  });
+
+  const expectedOutputPaths = getExpectedOutputPaths(
+    options.outputDirectory,
+    pages,
+    assetsFromPages
+  );
+
+  const unexpectedOutputPaths = actualOutputPaths.filter(
+    (outputPath) => !expectedOutputPaths.includes(outputPath)
+  );
+  const unexpectedOutputPathsAbsolute = unexpectedOutputPaths.map(
+    (unexpectedOutputPath) => {
+      return path.join(options.outputDirectory, unexpectedOutputPath);
+    }
+  );
+
+  await deleteFiles(unexpectedOutputPathsAbsolute, options.outputDirectory);
+  console.timeEnd('clean');
 
   // hooks.onPostBuild();
 }
