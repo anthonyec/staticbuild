@@ -71,6 +71,35 @@ function getExpectedOutputPaths(
   return [...pageOutputPaths, ...assetOutputPaths];
 }
 
+/**
+ * Remove files from output directory that are not expected to be there from built pages or copied assets.
+ */
+async function cleanOutputDirectory(
+  outputDirectory: string,
+  pages: Page[],
+  assets: Asset[]
+) {
+  const outputAbsolutePaths = await recursiveReadDirectory(outputDirectory);
+  const actualOutputPaths = outputAbsolutePaths.map((outputPath) => {
+    return path.relative(outputDirectory, outputPath);
+  });
+  const expectedOutputPaths = getExpectedOutputPaths(
+    outputDirectory,
+    pages,
+    assets
+  );
+  const unexpectedOutputPaths = actualOutputPaths.filter(
+    (outputPath) => !expectedOutputPaths.includes(outputPath)
+  );
+  const unexpectedOutputPathsAbsolute = unexpectedOutputPaths.map(
+    (unexpectedOutputPath) => {
+      return path.join(outputDirectory, unexpectedOutputPath);
+    }
+  );
+
+  await deleteFiles(unexpectedOutputPathsAbsolute, outputDirectory);
+}
+
 export default async function staticbuild(options: StaticBuildOptions) {
   console.time('setup');
   const config = getUserConfig(options.configPath);
@@ -109,29 +138,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
   console.timeEnd('render');
 
   console.time('clean');
-  const outputAbsolutePaths = await recursiveReadDirectory(
-    options.outputDirectory
-  );
-  const actualOutputPaths = outputAbsolutePaths.map((outputPath) => {
-    return path.relative(options.outputDirectory, outputPath);
-  });
-
-  const expectedOutputPaths = getExpectedOutputPaths(
-    options.outputDirectory,
-    pages,
-    assetsFromPages
-  );
-
-  const unexpectedOutputPaths = actualOutputPaths.filter(
-    (outputPath) => !expectedOutputPaths.includes(outputPath)
-  );
-  const unexpectedOutputPathsAbsolute = unexpectedOutputPaths.map(
-    (unexpectedOutputPath) => {
-      return path.join(options.outputDirectory, unexpectedOutputPath);
-    }
-  );
-
-  await deleteFiles(unexpectedOutputPathsAbsolute, options.outputDirectory);
+  await cleanOutputDirectory(options.outputDirectory, pages, assetsFromPages);
   console.timeEnd('clean');
 
   // hooks.onPostBuild();
