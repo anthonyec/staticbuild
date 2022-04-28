@@ -26,14 +26,21 @@ interface Page {
   assets?: Asset[];
 }
 
-// Equivalent to supplied data in Eleventry:
-// https://www.11ty.dev/docs/data-eleventy-supplied/#eleventy-supplied-data
+/**
+ * Variables that are supplied to every rendered page.
+ *
+ * They are equivalent to [Eleventy supplied data](https://www.11ty.dev/docs/data-eleventy-supplied/) or [Jekyll global variables](https://jekyllrb.com/docs/variables/).
+ */
 interface RenderGlobals {
   env: {
     devMode: boolean;
   };
+  /** Custom data that is provided by either `.js` or `.json` files in the `_data` directory. */
   data: object;
+  /** Custom functions that are provided by .js` files that export functions in the `_functions` directory. */
   functions: object;
+  /** List of all pages grouped by their `collection` attribute.  */
   collections: object;
+  /** Information about the current page, including comment props. */
   page: Page;
 }
