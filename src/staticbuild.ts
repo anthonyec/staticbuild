@@ -114,8 +114,10 @@ export default async function staticbuild(options: StaticBuildOptions) {
   console.timeEnd('setup');
 
   console.time('source');
+  // TODO: Add check that `getPages` and `getAssets` return arrays.
+  // Maybe even warn when they return empty array.
   const pages = await config.getPages();
-  // const assets = await config.getAssets();
+  const assets = await config.getAssets();
   const collections = getCollectionsFromPages(pages);
   console.timeEnd('source');
 
@@ -123,7 +125,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
   const assetsFromPages = getAssetsFromPages(pages);
   // const assetsToCopy = await getAssetsFilteredByChanges([...assets, ...assetsFromPages], changeList);
 
-  await copyAssets(assetsFromPages);
+  await copyAssets([...assets, ...assetsFromPages]);
   console.timeEnd('copy');
 
   console.time('render');
