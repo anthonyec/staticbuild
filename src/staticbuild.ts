@@ -200,7 +200,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
     partials,
     functions,
     collections,
-    data,
+    data
   });
   console.timeEnd('render');
 

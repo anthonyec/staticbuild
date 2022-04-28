@@ -54,7 +54,7 @@ export async function recursiveReadDirectory(
   async function scan(targetDirectoryPath: string) {
     const files: string[] = [];
     const entries = await fs.readdir(targetDirectoryPath, {
-      withFileTypes: true,
+      withFileTypes: true
     });
 
     for await (const entry of entries) {

@@ -18,10 +18,10 @@ const DEFAULT_CONFIG: Config = {
     partials: './src/_partials',
     functions: './src/_functions',
     data: './src/_data',
-    hooks: './src/_hooks',
+    hooks: './src/_hooks'
   },
   getPages: () => [],
-  getAssets: () => [],
+  getAssets: () => []
 };
 
 export function getUserConfig(configPath: string): Config {
@@ -32,7 +32,7 @@ export function getUserConfig(configPath: string): Config {
     ...userConfig,
     directories: {
       ...DEFAULT_CONFIG.directories,
-      ...userConfig.directories,
-    },
+      ...userConfig.directories
+    }
   };
 }

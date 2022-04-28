@@ -5,7 +5,7 @@ import * as markdown from 'markdown-wasm';
 import {
   checkFileExists,
   getDirectoryNames,
-  recursiveReadDirectory,
+  recursiveReadDirectory
 } from '../utils/fs';
 
 interface CollectionOptions {
@@ -141,24 +141,29 @@ export default async function getCollectionFromFS(
       .join(options.outputDirectory, 'index.html')
       .replaceAll('{{slug}}', slug);
 
-    const assetPaths = await recursiveReadDirectory(path.join(options.inputDirectory, file));
+    const assetPaths = await recursiveReadDirectory(
+      path.join(options.inputDirectory, file)
+    );
     const assetsWithoutMarkdownFile = assetPaths.filter((assetPath) => {
       return assetPath !== markdownFilePath;
     });
 
     // TODO: Tidy this up, especially the stuff with repeated {{slug}} path construction.
     const assets = assetsWithoutMarkdownFile.map((assetPath): Asset => {
-      const assetPathRelativeToCollection = path.relative(path.join(
-        options.inputDirectory,
-        file
-      ), assetPath);
+      const assetPathRelativeToCollection = path.relative(
+        path.join(options.inputDirectory, file),
+        assetPath
+      );
       const assetFileName = path.basename(assetPath);
 
       return {
         filename: assetFileName,
         inputPath: assetPath,
-        outputPath: path.join(options.outputDirectory.replaceAll('{{slug}}', slug), assetPathRelativeToCollection)
-      }
+        outputPath: path.join(
+          options.outputDirectory.replaceAll('{{slug}}', slug),
+          assetPathRelativeToCollection
+        )
+      };
     });
 
     const page: Page = {
@@ -172,7 +177,7 @@ export default async function getCollectionFromFS(
       assets,
 
       // Page comment props can override anything, so be careful (or have fun)!
-      ...props,
+      ...props
     };
 
     pages.push(page);

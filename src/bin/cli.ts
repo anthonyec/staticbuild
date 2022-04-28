@@ -8,11 +8,11 @@ import { staticbuild } from '..';
 const ERROR_CODE = {
   SUCCESS: 0,
   CALLED_WITH_ILLEGAL_PARAMETERS: 1,
-  FAILED_T0_READ_LOCAL_FILE: 11,
+  FAILED_T0_READ_LOCAL_FILE: 11
 };
 
 const DEFAULT_ARGS = {
-  watch: false,
+  watch: false
 };
 
 function logUsage() {
@@ -75,7 +75,7 @@ async function main() {
     inputDirectory: path.join(process.cwd(), inputDirectory),
     outputDirectory: path.join(process.cwd(), outputDirectory),
     configPath: path.join(process.cwd(), '.staticbuildrc.js'),
-    ...options,
+    ...options
   });
 }
 
