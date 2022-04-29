@@ -80,6 +80,10 @@ async function cleanOutputDirectory(
   pages: Page[],
   assets: Asset[]
 ) {
+  // TODO: There is a bug with renamed directories leave empty folders around
+  // that don't get deleted.
+
+  // TODO: Make clearer, its confusing about which is absolute and relative and why.
   const outputAbsolutePaths = await recursiveReadDirectory(outputDirectory);
   const actualOutputPaths = outputAbsolutePaths.map((outputPath) => {
     return path.relative(outputDirectory, outputPath);
@@ -147,16 +151,17 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
     console.time('copy');
     const assetsFromPages = getAssetsFromPages(pages);
+    const allAssets = [...assets, ...assetsFromPages];
     const assetsToCopy = await getAssetsFilteredByChanges(
       options.inputDirectory,
-      [...assets, ...assetsFromPages],
+      allAssets,
       onlyChangeForPaths
     );
 
     if (onlyChangeForPaths) {
       await copyAssets(assetsToCopy);
     } else {
-      await copyAssets([...assets, ...assetsFromPages]);
+      await copyAssets(allAssets);
     }
     console.timeEnd('copy');
 
@@ -172,15 +177,14 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.timeEnd('render');
 
     console.time('clean');
-    // TODO: There is a bug with renamed directories leave empty folders around
-    // that don't get deleted.
-    await cleanOutputDirectory(options.outputDirectory, pages, assetsFromPages);
+    await cleanOutputDirectory(options.outputDirectory, pages, allAssets);
     console.timeEnd('clean');
   }
 
   await build();
 
   if (options.watch) {
+    console.log('---');
     console.log('👀 watching for changes...');
 
     await watchDirectoryForChanges(
