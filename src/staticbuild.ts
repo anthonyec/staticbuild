@@ -132,10 +132,12 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.time('setup');
     const config = getUserConfig(options.configPath);
 
-    // const hooks = await getFunctionsFromFS(config.directories.hooks);
     // TODO: Is it possible for these functions to use a shared sourcing func?
     // TODO: Add checks that paths exist.
+    // const hooks = await getFunctionsFromFS(config.directories.hooks);
     const functions = await getFunctionsFromFS(config.directories.functions);
+
+    // TODO: Add check for errors with data JSON formatting.
     const data = await getFunctionsFromFS(config.directories.data);
     const layouts = await getLayoutsFromFS(config.directories.layouts);
     const partials = await getLayoutsFromFS(config.directories.partials);

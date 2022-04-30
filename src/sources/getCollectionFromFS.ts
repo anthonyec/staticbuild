@@ -137,9 +137,18 @@ export default async function getCollectionFromFS(
     const [props, contentWithoutCommentProps] =
       getCommentPropsFromContent(content);
     const slug = file.replace(`${date}-`, '');
+    const outputDirectory = options.outputDirectory.replaceAll(
+      '{{slug}}',
+      slug
+    );
     const outputPath = path
       .join(options.outputDirectory, 'index.html')
       .replaceAll('{{slug}}', slug);
+
+    // TODO: This is harc-coded to remove `./dist` but it should be dynamic.
+    // Should it just remove the first part of the path or should the
+    // `./dist` directory be passed in and subtracted from the path?
+    const url = outputDirectory.replace('./dist', '');
 
     const assetPaths = await recursiveReadDirectory(
       path.join(options.inputDirectory, file)
@@ -169,6 +178,7 @@ export default async function getCollectionFromFS(
     const page: Page = {
       title,
       slug,
+      url,
       layout: options.defaultLayout,
       date: new Date(date),
       collection: options.name,

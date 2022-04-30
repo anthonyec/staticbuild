@@ -10,6 +10,8 @@ interface Asset {
 interface Page {
   /** Page title, e.g `My Cool Page` */
   title: string;
+  /** URL that can be used to link to the page, e.g with `<a href>` */
+  url: string;
   /** Slugified name which can be used in URLs, e.g `my-cool-page` */
   slug?: string;
   /** Date the page was created */
