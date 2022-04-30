@@ -48,6 +48,59 @@ export async function getFileNames(directoryPath: string): Promise<string[]> {
     .map((entry) => entry.name);
 }
 
+interface File {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+}
+
+export async function scanDirectory(
+  targetDirectory: string,
+  ignorePathsAndDirectories: string[] = []
+): Promise<File[]> {
+  // Remove `./` from ignored paths.
+  const normalizedIgnorePathsAndDirectories = ignorePathsAndDirectories.map(
+    path.normalize
+  );
+
+  async function scan(currentTargetDirectory: string) {
+    const files: File[] = [];
+    const entries = await fs.readdir(currentTargetDirectory, {
+      withFileTypes: true
+    });
+
+    for await (const entry of entries) {
+      const entryPath = path.join(currentTargetDirectory, entry.name);
+      const isIgnored = normalizedIgnorePathsAndDirectories.find(
+        (pathOrDirectory) => pathOrDirectory.startsWith(entryPath)
+      );
+
+      if (isIgnored) {
+        continue;
+      }
+
+      if (IGNORED_FILES.includes(entry.name)) {
+        continue;
+      }
+
+      if (entry.isDirectory()) {
+        const subDirectoryFiles = await scan(entryPath);
+        files.push(...subDirectoryFiles);
+      }
+
+      files.push({
+        name: entry.name,
+        path: entryPath,
+        isDirectory: entry.isDirectory()
+      });
+    }
+
+    return files;
+  }
+
+  return await scan(targetDirectory);
+}
+
 export async function recursiveReadDirectory(
   directoryPath: string
 ): Promise<string[]> {
