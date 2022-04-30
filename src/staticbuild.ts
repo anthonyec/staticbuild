@@ -5,8 +5,8 @@ import { getUserConfig } from './config';
 import { getLayoutsFromFS } from './sources/getLayoutsFromFS';
 import { getFunctionsFromFS } from './sources/getFunctionsFromFS';
 import { renderPages } from './renderPages';
-import { deleteFiles, recursiveReadDirectory } from './utils/fs';
 import { watchDirectoryForChanges } from './watchDirectoryForChanges';
+import { cleanOutputDirectory } from './cleanOutputDirectory';
 
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */
@@ -55,54 +55,6 @@ async function copyAssets(assets: Asset[]) {
   for await (const asset of assets) {
     await fs.cp(asset.inputPath, asset.outputPath);
   }
-}
-
-function getExpectedOutputPaths(
-  outputDirectory: string,
-  pages: Page[],
-  assets: Asset[]
-): string[] {
-  const pageOutputPaths = pages.map((page) =>
-    path.relative(outputDirectory, page.outputPath)
-  );
-  const assetOutputPaths = assets.map((asset) =>
-    path.relative(outputDirectory, asset.outputPath)
-  );
-
-  return [...pageOutputPaths, ...assetOutputPaths];
-}
-
-/**
- * Remove files from output directory that are not expected to be there from built pages or copied assets.
- */
-async function cleanOutputDirectory(
-  outputDirectory: string,
-  pages: Page[],
-  assets: Asset[]
-) {
-  // TODO: There is a bug with renamed directories leave empty folders around
-  // that don't get deleted.
-
-  // TODO: Make clearer, its confusing about which is absolute and relative and why.
-  const outputAbsolutePaths = await recursiveReadDirectory(outputDirectory);
-  const actualOutputPaths = outputAbsolutePaths.map((outputPath) => {
-    return path.relative(outputDirectory, outputPath);
-  });
-  const expectedOutputPaths = getExpectedOutputPaths(
-    outputDirectory,
-    pages,
-    assets
-  );
-  const unexpectedOutputPaths = actualOutputPaths.filter(
-    (outputPath) => !expectedOutputPaths.includes(outputPath)
-  );
-  const unexpectedOutputPathsAbsolute = unexpectedOutputPaths.map(
-    (unexpectedOutputPath) => {
-      return path.join(outputDirectory, unexpectedOutputPath);
-    }
-  );
-
-  await deleteFiles(unexpectedOutputPathsAbsolute, outputDirectory);
 }
 
 function getAssetsFilteredByChanges(
