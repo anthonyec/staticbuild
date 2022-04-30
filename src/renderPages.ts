@@ -62,9 +62,6 @@ function withComputedValues<T>(
 export async function renderPages(options: RenderPageOptions) {
   for await (const page of options.pages) {
     const outputDirectory = path.dirname(page.outputPath);
-    const template =
-      (page.layout && options.layouts[page.layout]) || DEFAULT_EMPTY_LAYOUT;
-
     const globals: RenderGlobals = withComputedValues<RenderGlobals>(['data'], {
       env: {
         devMode: process.env.NODE_ENV === 'dev'
@@ -74,6 +71,8 @@ export async function renderPages(options: RenderPageOptions) {
       data: options.data,
       page
     });
+    const template =
+      (page.layout && options.layouts[page.layout]) || page.content;
 
     // TODO: Handle errors from bad templates!
     const renderedPage = mustache.render(template, globals, options.partials);
