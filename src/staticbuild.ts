@@ -79,8 +79,9 @@ function getAssetsFilteredByChanges(
 }
 
 export default async function staticbuild(options: StaticBuildOptions) {
-  // TODO: Think of a better name for `onlyChangeForPaths` and make consistent.
-  async function build(onlyChangeForPaths?: string[]) {
+  async function build(changedFilePaths?: string[]) {
+    console.log('changedFilePaths', changedFilePaths);
+
     console.time('setup');
     const config = getUserConfig(options.configPath);
 
@@ -104,19 +105,10 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.timeEnd('source');
 
     console.time('copy');
-    const assetsFromPages = getAssetsFromPages(pages);
-    const allAssets = [...assets, ...assetsFromPages];
-    const assetsToCopy = await getAssetsFilteredByChanges(
-      options.inputDirectory,
-      allAssets,
-      onlyChangeForPaths
-    );
+    // TODO: Filter assets by changed files.
+    const allAssets = [...assets, ...getAssetsFromPages(pages)];
 
-    if (onlyChangeForPaths) {
-      await copyAssets(assetsToCopy);
-    } else {
-      await copyAssets(allAssets);
-    }
+    await copyAssets(allAssets);
     console.timeEnd('copy');
 
     console.time('render');
