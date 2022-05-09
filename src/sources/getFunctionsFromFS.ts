@@ -1,9 +1,12 @@
 import * as path from 'path';
-import * as fs from 'fs/promises';
 
-import { getFileNames, requireUncached } from '../utils/fs';
+import { checkFileExists, getFileNames, requireUncached } from '../utils/fs';
 
 export async function getFunctionsFromFS(functionsDirectory: string) {
+  if (!(await checkFileExists(functionsDirectory))) {
+    return {};
+  }
+
   const functions: { [name: string]: any } = {};
   const functionFilenames = await getFileNames(functionsDirectory);
 
