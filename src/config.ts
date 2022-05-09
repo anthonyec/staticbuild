@@ -1,4 +1,4 @@
-import { requireUncached } from './utils/fs';
+import { checkFileExists, requireUncached } from './utils/fs';
 
 interface Config {
   directories: {
@@ -6,7 +6,6 @@ interface Config {
     partials: string;
     functions: string;
     data: string;
-    hooks: string;
   };
   getPages: () => Page[];
   getAssets: () => Asset[];
@@ -17,14 +16,17 @@ const DEFAULT_CONFIG: Config = {
     layouts: './src/_layouts',
     partials: './src/_partials',
     functions: './src/_functions',
-    data: './src/_data',
-    hooks: './src/_hooks'
+    data: './src/_data'
   },
   getPages: () => [],
   getAssets: () => []
 };
 
-export function getUserConfig(configPath: string): Config {
+export async function getUserConfig(configPath: string): Promise<Config> {
+  if (!(await checkFileExists(configPath))) {
+    return DEFAULT_CONFIG;
+  }
+
   const userConfig = requireUncached<Config>(configPath);
 
   return {
