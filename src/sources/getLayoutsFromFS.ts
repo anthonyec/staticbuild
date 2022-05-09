@@ -1,9 +1,13 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
 
-import { getFileNames } from '../utils/fs';
+import { checkFileExists, getFileNames } from '../utils/fs';
 
 export async function getLayoutsFromFS(layoutsDirectory: string) {
+  if (!(await checkFileExists(layoutsDirectory))) {
+    return {};
+  }
+
   const layouts: { [name: string]: string } = {};
   const layoutFilenames = await getFileNames(layoutsDirectory);
 
