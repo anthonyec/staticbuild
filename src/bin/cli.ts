@@ -71,6 +71,10 @@ async function main() {
     return ERROR_CODE.FAILED_T0_READ_LOCAL_FILE;
   }
 
+  if (!fs.existsSync(outputDirectory)) {
+    fs.mkdirSync(outputDirectory);
+  }
+
   staticbuild({
     inputDirectory: path.join(process.cwd(), inputDirectory),
     outputDirectory: path.join(process.cwd(), outputDirectory),
