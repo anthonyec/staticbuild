@@ -80,15 +80,13 @@ function getAssetsFilteredByChanges(
 
 export default async function staticbuild(options: StaticBuildOptions) {
   async function build(changedFilePaths?: string[]) {
-    console.log('changedFilePaths', changedFilePaths);
+    if (changedFilePaths) {
+      console.log('changedFilePaths', changedFilePaths);
+    }
 
     console.time('setup');
     const config = await getUserConfig(options.configPath);
-
-    // TODO: Is it possible for these functions to use a shared sourcing func?
-    // TODO: Add checks that paths exist.
     const functions = await getFunctionsFromFS(config.directories.functions);
-
     // TODO: Add check for errors with data JSON formatting.
     const data = await getFunctionsFromFS(config.directories.data);
     const layouts = await getLayoutsFromFS(config.directories.layouts);
@@ -100,6 +98,15 @@ export default async function staticbuild(options: StaticBuildOptions) {
     // Maybe even warn when they return empty array.
     const pages = await config.getPages();
     const assets = await config.getAssets();
+
+    if (!(pages instanceof Array)) {
+      throw new Error('An array needs to be returned from `getPages`');
+    }
+
+    if (!(assets instanceof Array)) {
+      throw new Error('An array needs to be returned from `getAssets`');
+    }
+
     const collections = getCollectionsFromPages(pages);
     console.timeEnd('source');
 
