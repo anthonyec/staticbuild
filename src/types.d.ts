@@ -28,6 +28,8 @@ interface Page {
   assets?: Asset[];
 }
 
+type Collections = { [name: string]: Page[] };
+
 /**
  * Variables that are supplied to every rendered page.
  *
@@ -42,7 +44,7 @@ interface RenderGlobals {
   /** Custom functions that are provided by .js` files that export functions in the `_functions` directory. */
   functions: object;
   /** List of all pages grouped by their `collection` attribute.  */
-  collections: object;
+  collections: Collections;
   /** Information about the current page, including comment props. */
   page: Page;
 }

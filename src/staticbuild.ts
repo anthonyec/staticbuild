@@ -19,25 +19,22 @@ interface StaticBuildOptions {
   watch?: boolean;
 }
 
-// TODO: Rewrite and tidy up.
-function getCollectionsFromPages(pages: Page[]): { [key: string]: Page[] } {
-  return pages.reduce((acc, page) => {
-    if (page.collection) {
-      // @ts-ignore
-      if (!acc[page.collection]) {
-        // @ts-ignore
-        acc[page.collection] = [page];
-      } else {
-        // @ts-ignore
-        acc[page.collection].push(page);
-      }
-    }
+function getCollectionsFromPages(pages: Page[]): Collections {
+  const collections: Collections = {};
 
-    return acc;
-  }, {});
+  for (const page of pages) {
+    if (page.collection) {
+      if (!collections[page.collection]) {
+        collections[page.collection] = [];
+      }
+
+      collections[page.collection].push(page);
+    }
+  }
+
+  return collections;
 }
 
-// TODO: Decide where this should live.
 function getAssetsFromPages(pages: Page[]): Asset[] {
   const assets: Asset[] = [];
 
