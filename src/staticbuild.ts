@@ -84,7 +84,11 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
     await watchDirectoryForChanges(options.inputDirectory, async () => {
       console.log('---');
-      await build();
+      try {
+        await build();
+      } catch (err) {
+        console.log('error:', err);
+      }
     });
   }
 }
