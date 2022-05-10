@@ -86,6 +86,7 @@ function getCommentPropsFromContent(content: string): [CommentProps, string] {
 
 /**
  * Creates pages belonging to a collection based on a specific directory structure.
+ * Pages are returned sorted by date.
  *
  * The directory must follow this structure:
  * ```txt
@@ -193,5 +194,13 @@ export default async function getCollectionFromFS(
     pages.push(page);
   }
 
-  return pages;
+  const pagesSortedByDate = pages.sort((pageA, pageB) => {
+    if (pageA.date && pageB.date) {
+      return pageB.date.getTime() - pageA.date.getTime();
+    }
+
+    return -1;
+  });
+
+  return pagesSortedByDate;
 }
