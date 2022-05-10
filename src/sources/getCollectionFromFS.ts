@@ -194,13 +194,5 @@ export default async function getCollectionFromFS(
     pages.push(page);
   }
 
-  const pagesSortedByDate = pages.sort((pageA, pageB) => {
-    if (pageA.date && pageB.date) {
-      return pageB.date.getTime() - pageA.date.getTime();
-    }
-
-    return -1;
-  });
-
-  return pagesSortedByDate;
+  return pages;
 }
