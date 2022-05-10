@@ -1,5 +1,4 @@
 import * as fs from 'fs/promises';
-import * as path from 'path';
 
 import { getUserConfig } from './config';
 import { getLayoutsFromFS } from './sources/getLayoutsFromFS';
@@ -7,6 +6,8 @@ import { getFunctionsFromFS } from './sources/getFunctionsFromFS';
 import { renderPages } from './renderPages';
 import { watchDirectoryForChanges } from './watchDirectoryForChanges';
 import { cleanOutputDirectory } from './cleanOutputDirectory';
+import { getCollectionsFromPages } from './getCollectionsFromPages';
+import { getAssetsFromPages } from './getAssetsFromPages';
 
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */
@@ -19,34 +20,6 @@ interface StaticBuildOptions {
   watch?: boolean;
 }
 
-function getCollectionsFromPages(pages: Page[]): Collections {
-  const collections: Collections = {};
-
-  for (const page of pages) {
-    if (page.collection) {
-      if (!collections[page.collection]) {
-        collections[page.collection] = [];
-      }
-
-      collections[page.collection].push(page);
-    }
-  }
-
-  return collections;
-}
-
-function getAssetsFromPages(pages: Page[]): Asset[] {
-  const assets: Asset[] = [];
-
-  for (const page of pages) {
-    if (page.assets) {
-      assets.push(...page.assets);
-    }
-  }
-
-  return assets;
-}
-
 // TODO: Decide where this should live.
 async function copyAssets(assets: Asset[]) {
   for await (const asset of assets) {
@@ -54,33 +27,8 @@ async function copyAssets(assets: Asset[]) {
   }
 }
 
-function getAssetsFilteredByChanges(
-  inputDirectory: string,
-  assets: Asset[],
-  changedPaths: string[] = []
-) {
-  return assets.filter((asset) => {
-    // TODO: Is there a way to be consistent with what paths include?
-    // This code is getting rid of the `_src/` part from the `asset.inputPath`.
-    const relativeAssetInputPath = path.relative(
-      inputDirectory,
-      asset.inputPath
-    );
-    const absoluteAssetInputPath = path.join(
-      inputDirectory,
-      relativeAssetInputPath
-    );
-
-    return changedPaths.includes(absoluteAssetInputPath);
-  });
-}
-
 export default async function staticbuild(options: StaticBuildOptions) {
-  async function build(changedFilePaths?: string[]) {
-    if (changedFilePaths) {
-      console.log('changedFilePaths', changedFilePaths);
-    }
-
+  async function build() {
     console.time('setup');
     const config = await getUserConfig(options.configPath);
     const functions = await getFunctionsFromFS(config.directories.functions);
@@ -91,8 +39,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.timeEnd('setup');
 
     console.time('source');
-    // TODO: Add check that `getPages` and `getAssets` return arrays.
-    // Maybe even warn when they return empty array.
     const pages = await config.getPages();
     const assets = await config.getAssets();
 
@@ -136,12 +82,9 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.log('---');
     console.log('👀 watching for changes...');
 
-    await watchDirectoryForChanges(
-      options.inputDirectory,
-      async (changedFilePaths) => {
-        console.log('---');
-        await build(changedFilePaths);
-      }
-    );
+    await watchDirectoryForChanges(options.inputDirectory, async () => {
+      console.log('---');
+      await build();
+    });
   }
 }
