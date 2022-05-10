@@ -2,8 +2,6 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as mustache from 'mustache';
 
-const DEFAULT_EMPTY_LAYOUT = '{{{page.content}}}';
-
 interface RenderPageOptions {
   pages: Page[];
   layouts: {
@@ -12,16 +10,9 @@ interface RenderPageOptions {
   partials: {
     [name: string]: string;
   };
-  functions: {
-    [name: string]: () => () => unknown; // TODO: Type?
-  };
-  collections: {
-    [name: string]: Page[];
-  };
-  data: {
-    // TODO: Add better types.
-    [name: string]: object | ((globals: RenderGlobals) => object);
-  };
+  functions: RenderContext['functions'];
+  collections: RenderContext['collections'];
+  data: RenderContext['data'];
 }
 
 function getObjectWithFunctionsInvoked<T, A>(
@@ -62,7 +53,7 @@ function withComputedValues<T>(
 export async function renderPages(options: RenderPageOptions) {
   for await (const page of options.pages) {
     const outputDirectory = path.dirname(page.outputPath);
-    const globals: RenderGlobals = withComputedValues<RenderGlobals>(['data'], {
+    const context: RenderContext = withComputedValues<RenderContext>(['data'], {
       env: {
         devMode: process.env.NODE_ENV === 'dev'
       },
@@ -75,7 +66,7 @@ export async function renderPages(options: RenderPageOptions) {
       (page.layout && options.layouts[page.layout]) || page.content;
 
     // TODO: Handle errors from bad templates!
-    const renderedPage = mustache.render(template, globals, options.partials);
+    const renderedPage = mustache.render(template, context, options.partials);
 
     await fs.mkdir(outputDirectory, { recursive: true });
     await fs.writeFile(page.outputPath, renderedPage, 'utf8');

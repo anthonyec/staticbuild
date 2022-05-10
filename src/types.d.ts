@@ -30,19 +30,28 @@ interface Page {
 
 type Collections = { [name: string]: Page[] };
 
+type MustacheFunction = () => (
+  text: string,
+  render: (template: string) => string
+) => string;
+
 /**
  * Variables that are supplied to every rendered page.
  *
  * They are equivalent to [Eleventy supplied data](https://www.11ty.dev/docs/data-eleventy-supplied/) or [Jekyll global variables](https://jekyllrb.com/docs/variables/).
  */
-interface RenderGlobals {
+interface RenderContext {
   env: {
     devMode: boolean;
   };
   /** Custom data that is provided by either `.js` or `.json` files in the `_data` directory. */
-  data: object;
+  data: {
+    [name: string]: object | ((context: RenderContext) => object);
+  };
   /** Custom functions that are provided by .js` files that export functions in the `_functions` directory. */
-  functions: object;
+  functions: {
+    [name: string]: MustacheFunction;
+  };
   /** List of all pages grouped by their `collection` attribute.  */
   collections: Collections;
   /** Information about the current page, including comment props. */
