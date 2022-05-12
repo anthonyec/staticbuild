@@ -28,6 +28,10 @@ interface Page {
   assets?: Asset[];
 }
 
+interface Hooks {
+  onRenderPage: (context: RenderContext, template: string) => string;
+}
+
 type Collections = { [name: string]: Page[] };
 
 type MustacheFunction = () => (

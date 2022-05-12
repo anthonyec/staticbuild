@@ -10,6 +10,7 @@ interface RenderPageOptions {
   partials: {
     [name: string]: string;
   };
+  hooks: Hooks;
   functions: RenderContext['functions'];
   collections: RenderContext['collections'];
   data: RenderContext['data'];
@@ -65,7 +66,11 @@ export async function renderPages(options: RenderPageOptions) {
     const template =
       (page.layout && options.layouts[page.layout]) || page.content;
 
-    const renderedPage = mustache.render(template, context, options.partials);
+    const renderedPage = mustache.render(
+      options.hooks.onRenderPage(context, template),
+      context,
+      options.partials
+    );
 
     await fs.mkdir(outputDirectory, { recursive: true });
     await fs.writeFile(page.outputPath, renderedPage, 'utf8');

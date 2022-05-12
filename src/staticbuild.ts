@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises';
+import * as path from 'path';
 
 import { getUserConfig } from './config';
 import { getLayoutsFromFS } from './sources/getLayoutsFromFS';
@@ -8,6 +9,7 @@ import { watchDirectoryForChanges } from './watchDirectoryForChanges';
 import { cleanOutputDirectory } from './cleanOutputDirectory';
 import { getCollectionsFromPages } from './getCollectionsFromPages';
 import { getAssetsFromPages } from './getAssetsFromPages';
+import { createReloader } from './reloader';
 
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */
@@ -28,6 +30,8 @@ async function copyAssets(assets: Asset[]) {
 }
 
 export default async function staticbuild(options: StaticBuildOptions) {
+  const reloader = createReloader();
+
   async function build() {
     console.time('setup');
     const config = await getUserConfig(options.configPath);
@@ -36,6 +40,17 @@ export default async function staticbuild(options: StaticBuildOptions) {
     const data = await getFunctionsFromFS(config.directories.data);
     const layouts = await getLayoutsFromFS(config.directories.layouts);
     const partials = await getLayoutsFromFS(config.directories.partials);
+    const hooks = {
+      onRenderPage: (context: RenderContext, template: string): string => {
+        const extension = path.extname(context.page.outputPath);
+
+        if (extension === '.html') {
+          return template + reloader.getScript();
+        }
+
+        return template;
+      }
+    };
     console.timeEnd('setup');
 
     console.time('source');
@@ -65,6 +80,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
       pages,
       layouts,
       partials,
+      hooks,
       functions,
       collections,
       data
@@ -86,6 +102,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
       console.log('---');
       try {
         await build();
+        reloader.reload();
       } catch (err) {
         console.log('error:', err);
       }
