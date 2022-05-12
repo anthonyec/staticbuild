@@ -28,6 +28,10 @@ interface Page {
   assets?: Asset[];
 }
 
+interface Env {
+  devMode: boolean;
+}
+
 interface Hooks {
   onRenderPage: (context: RenderContext, template: string) => string;
 }
@@ -45,9 +49,7 @@ type MustacheFunction = () => (
  * They are equivalent to [Eleventy supplied data](https://www.11ty.dev/docs/data-eleventy-supplied/) or [Jekyll global variables](https://jekyllrb.com/docs/variables/).
  */
 interface RenderContext {
-  env: {
-    devMode: boolean;
-  };
+  env: Env;
   /** Custom data that is provided by either `.js` or `.json` files in the `_data` directory. */
   data: {
     [name: string]: object | ((context: RenderContext) => object);

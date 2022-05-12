@@ -1,7 +1,7 @@
 #! /usr/bin/env node
 import * as fs from 'fs';
 import * as path from 'path';
-import { stdout } from 'process';
+import { exit, stdout } from 'process';
 
 import { staticbuild } from '..';
 
@@ -75,12 +75,15 @@ async function main() {
     fs.mkdirSync(outputDirectory);
   }
 
-  staticbuild({
+  await staticbuild({
     inputDirectory: path.join(process.cwd(), inputDirectory),
     outputDirectory: path.join(process.cwd(), outputDirectory),
     configPath: path.join(process.cwd(), '.staticbuildrc.js'),
     ...options
   });
+
+  // TODO: Why do I need to explicitly exit?
+  exit(0);
 }
 
 main();

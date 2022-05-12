@@ -10,6 +10,7 @@ import { cleanOutputDirectory } from './cleanOutputDirectory';
 import { getCollectionsFromPages } from './getCollectionsFromPages';
 import { getAssetsFromPages } from './getAssetsFromPages';
 import { createReloader } from './reloader';
+import { getEnvironmentConfig } from './env';
 
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */
@@ -34,6 +35,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
   async function build() {
     console.time('setup');
+    const env = getEnvironmentConfig();
     const config = await getUserConfig(options.configPath);
     const functions = await getFunctionsFromFS(config.directories.functions);
     // TODO: Add check for errors with data JSON formatting.
@@ -44,7 +46,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
       onRenderPage: (context: RenderContext, template: string): string => {
         const extension = path.extname(context.page.outputPath);
 
-        if (extension === '.html') {
+        if (env.devMode && extension === '.html') {
           return template + reloader.getScript();
         }
 
@@ -80,6 +82,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
       pages,
       layouts,
       partials,
+      env,
       hooks,
       functions,
       collections,

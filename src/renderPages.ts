@@ -11,6 +11,7 @@ interface RenderPageOptions {
     [name: string]: string;
   };
   hooks: Hooks;
+  env: RenderContext['env'];
   functions: RenderContext['functions'];
   collections: RenderContext['collections'];
   data: RenderContext['data'];
@@ -55,9 +56,7 @@ export async function renderPages(options: RenderPageOptions) {
   for await (const page of options.pages) {
     const outputDirectory = path.dirname(page.outputPath);
     const context: RenderContext = withComputedValues<RenderContext>(['data'], {
-      env: {
-        devMode: process.env.NODE_ENV === 'dev'
-      },
+      env: options.env,
       functions: options.functions,
       collections: options.collections,
       data: options.data,
