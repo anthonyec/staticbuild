@@ -6,7 +6,7 @@ function formatServerSideEvent(name: string, message?: string) {
 }
 
 export function createReloader() {
-  const PORT = 5678;
+  let port = 4000;
   const events = new EventEmitter();
 
   function getScript(port: number) {
@@ -36,19 +36,32 @@ export function createReloader() {
     `;
   }
 
-  const server = http.createServer(function (_request, response) {
-    response.setHeader('Content-Type', 'text/event-stream');
-    response.setHeader('access-control-allow-origin', '*');
+  function start() {
+    const server = http.createServer(function (_request, response) {
+      response.setHeader('Content-Type', 'text/event-stream');
+      response.setHeader('access-control-allow-origin', '*');
 
-    events.on('reload', () => {
-      response.write(formatServerSideEvent('reload'));
+      events.on('reload', () => {
+        response.write(formatServerSideEvent('reload'));
+      });
     });
-  });
 
-  server.listen(PORT);
+    server.listen(port);
+
+    server.once('error', (err) => {
+      // If the port is already in use, increment the port number and try again!
+      // TODO: Fix error type
+      // @ts-ignore
+      if (err.code === 'EADDRINUSE') {
+        port++;
+        start();
+      }
+    });
+  }
 
   return {
-    getScript: () => getScript(PORT),
-    reload: () => events.emit('reload')
+    getScript: () => getScript(port),
+    reload: () => events.emit('reload'),
+    start
   };
 }

@@ -1,3 +1,7 @@
+interface Args {
+  watch?: boolean;
+}
+
 interface Asset {
   /** Name of the file including extension, e.g `image.png` */
   filename: string;

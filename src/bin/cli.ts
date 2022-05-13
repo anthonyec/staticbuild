@@ -11,7 +11,7 @@ const ERROR_CODE = {
   FAILED_T0_READ_LOCAL_FILE: 11
 };
 
-const DEFAULT_ARGS = {
+const DEFAULT_ARGS: Args = {
   watch: false
 };
 
@@ -40,7 +40,7 @@ async function main() {
   const inputDirectory = args[0];
   const outputDirectory = args[1];
 
-  // Get options that user has provided.
+  // Parse options that user has provided as an args object.
   const options = args.reduce(
     (mem, arg) => {
       if (arg === '--watch' || arg === '-w') {
@@ -81,9 +81,6 @@ async function main() {
     configPath: path.join(process.cwd(), '.staticbuildrc.js'),
     ...options
   });
-
-  // TODO: Why do I need to explicitly exit?
-  exit(0);
 }
 
 main();

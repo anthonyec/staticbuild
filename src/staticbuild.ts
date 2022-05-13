@@ -101,6 +101,8 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.log('---');
     console.log('👀 watching for changes...');
 
+    reloader.start();
+
     await watchDirectoryForChanges(options.inputDirectory, async () => {
       console.log('---');
       try {
