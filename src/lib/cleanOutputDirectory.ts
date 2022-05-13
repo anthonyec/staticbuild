@@ -1,6 +1,6 @@
 import * as path from 'path';
 
-import { deleteFiles, recursiveReadDirectory } from './utils/fs';
+import { deleteFiles, recursiveReadDirectory } from '../utils/fs';
 
 function getExpectedOutputPaths(
   outputDirectory: string,

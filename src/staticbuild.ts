@@ -1,16 +1,16 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-import { getUserConfig } from './config';
 import { getLayoutsFromFS } from './sources/getLayoutsFromFS';
 import { getFunctionsFromFS } from './sources/getFunctionsFromFS';
-import { renderPages } from './renderPages';
-import { watchDirectoryForChanges } from './watchDirectoryForChanges';
-import { cleanOutputDirectory } from './cleanOutputDirectory';
-import { getCollectionsFromPages } from './getCollectionsFromPages';
-import { getAssetsFromPages } from './getAssetsFromPages';
-import { createReloader } from './reloader';
-import { getEnvironmentConfig } from './env';
+import { getUserConfig } from './lib/config';
+import { renderPages } from './lib/renderPages';
+import { watchDirectoryForChanges } from './lib/watchDirectoryForChanges';
+import { cleanOutputDirectory } from './lib/cleanOutputDirectory';
+import { getCollectionsFromPages } from './lib/getCollectionsFromPages';
+import { getAssetsFromPages } from './lib/getAssetsFromPages';
+import { createReloader } from './lib/reloader';
+import { getEnvironmentConfig } from './lib/env';
 
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */

@@ -1,4 +1,4 @@
-import { checkFileExists, requireUncached } from './utils/fs';
+import { checkFileExists, requireUncached } from '../utils/fs';
 
 interface Config {
   directories: {
