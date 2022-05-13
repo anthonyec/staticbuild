@@ -46,17 +46,14 @@ export function createReloader() {
       });
     });
 
-    server.listen(port);
-
     server.once('error', (err) => {
-      // If the port is already in use, increment the port number and try again!
-      // TODO: Fix error type
-      // @ts-ignore
-      if (err.code === 'EADDRINUSE') {
+      if (err instanceof Error && err.code === 'EADDRINUSE') {
         port++;
         start();
       }
     });
+
+    server.listen(port);
   }
 
   return {

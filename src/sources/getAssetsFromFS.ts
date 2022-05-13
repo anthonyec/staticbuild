@@ -2,7 +2,6 @@ import * as path from 'path';
 
 import { scanDirectory } from '../utils/fs';
 
-// TODO: Rename interface.
 interface AssetsOptions {
   inputDirectory: string;
   outputDirectory: string;

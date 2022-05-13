@@ -14,10 +14,8 @@ export async function checkFileExists(filePath: string) {
   try {
     await fs.access(filePath, constants.F_OK);
     return true;
-  } catch (err: unknown) {
+  } catch (err) {
     if (err instanceof Error) {
-      // TODO: Fix types
-      // @ts-ignore
       if (err.code === 'ENOENT') {
         return false;
       }
