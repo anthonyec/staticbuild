@@ -7,7 +7,7 @@
   <br><br>
 </div>
 
-`staticbuild` is a static site generator with minimum dependencies and minimum support for anything other than my own projects.
+`staticbuild` is a static site generator with minimum dependencies (currently markdown-wasm and mustache) and minimum support for anything other than my own projects.
 
 I'm currently using this in the following projects:
 
@@ -16,7 +16,7 @@ I'm currently using this in the following projects:
 
 ## Why
 
-I used to use `jekyll` for generating [my website](https://anthonycossins.com/). But after switching to a new computer (M1 Macbook), I found it very difficult to setup Ruby, Bundler and all the other junk that was required to get my site running.
+I used to use `jekyll` for generating [my website](https://anthonycossins.com/). But after switching to a new computer, I found it very difficult to setup Ruby, Bundler and all the other junk that was required to get my site running.
 
 So out of frustration I built my own static site generator within a couple of hours. It was messy but it worked. And was actually faster than `jekyll` because I don't need it to be as flexible.
 
