@@ -18,7 +18,7 @@ I'm currently using this in the following projects:
 - Small and flat dependency tree, [markdown-wasm](https://github.com/rsms/markdown-wasm/) and [mustache.js](https://github.com/janl/mustache.js/)
 - Automatic page reloading when files change
 - Configuration is just JavaScript™️
-- Markdown files display nicely in GitHub, with images and no ugly front matter table
+- Markdown files [display nicely](https://github.com/anthonyec/website/blob/main/src/_posts/2022-03-30-one-year-of-salad-room/index.md) in GitHub, with images and no ugly front matter table
 
 ## Why
 
