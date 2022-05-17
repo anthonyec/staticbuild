@@ -16,8 +16,9 @@ I'm currently using this in the following projects:
 
 ## Features
 - Small and flat dependency tree, [markdown-wasm](https://github.com/rsms/markdown-wasm/) and [mustache.js](https://github.com/janl/mustache.js/)
-- Automatic reload when files change
-- Configuruation is just JavaScript™️, if you can construct an array of `Page` objects, you can make site
+- Automatic page reloading when files change
+- Configuration is just JavaScript™️
+- Markdown files display nicely in GitHub, with images and no ugly front matter table
 
 ## Why
 
