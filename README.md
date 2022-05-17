@@ -7,12 +7,17 @@
   <br><br>
 </div>
 
-`staticbuild` is a static site generator with minimum dependencies (currently markdown-wasm and mustache) and minimum support for anything other than my own projects.
+`staticbuild` is a static site generator with minimum dependencies ([markdown-wasm](https://github.com/rsms/markdown-wasm/) and [mustache.js](https://github.com/janl/mustache.js/)) and minimum support for anything other than my own projects.
 
 I'm currently using this in the following projects:
 
 - [anthonyec/website](https://github.com/anthonyec/website)
 - [anthonyec/archive](https://github.com/anthonyec/archive)
+
+## Features
+- Small and flat dependency tree, [markdown-wasm](https://github.com/rsms/markdown-wasm/) and [mustache.js](https://github.com/janl/mustache.js/)
+- Automatic reload when files change
+- Configuruation is just JavaScript™️, if you can construct an array of `Page` objects, you can make site
 
 ## Why
 
@@ -20,7 +25,7 @@ I used to use `jekyll` for generating [my website](https://anthonycossins.com/).
 
 So out of frustration I built my own static site generator within a couple of hours. It was messy but it worked. And was actually faster than `jekyll` because I don't need it to be as flexible.
 
-This version of `staticbuild` is an attempt to clean things up and document while still maintaining it's minimalism-ish.
+This version of `staticbuild` is an attempt to clean things up while still maintaining it's minimalism-ish.
 
 ## Usage
 
