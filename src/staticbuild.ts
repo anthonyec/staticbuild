@@ -41,6 +41,7 @@ async function copyAssets(
         contentsConcatenated += `${contents}\n`;
       }
 
+      // TODO: Should this be moved up and done for all assets?
       await fs.mkdir(
         path.join(outputDirectory, path.dirname(asset.outputPath)),
         { recursive: true }
@@ -51,7 +52,17 @@ async function copyAssets(
         'utf8'
       );
     } else {
-      await fs.cp(asset.inputPath, asset.outputPath);
+      // TODO: Clean all these if statements up.
+      if (asset.inputPath.startsWith('data:')) {
+        // TODO: Ensure only "data:" at start of string is remove.
+        await fs.writeFile(
+          path.join(outputDirectory, asset.outputPath),
+          asset.inputPath.replace('data:', '').trim(),
+          'utf8'
+        );
+      } else {
+        await fs.cp(asset.inputPath, asset.outputPath);
+      }
     }
   }
 }
