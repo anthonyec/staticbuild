@@ -16,6 +16,7 @@ interface DOMNode {
 
 interface Document extends DOMNode {
   createElement: (tagName: string) => DOMNode;
+  doctype: DOMNode | null;
 }
 
 function hash(value: string): string {
@@ -110,6 +111,8 @@ export function optimizePages(pages: Page[]): [Page[], Asset[]] {
 
     optimizedPages.push({
       ...page,
+
+      // TODO: Fix missing doctype on posts!
       content: document.outerHTML
     });
   }
