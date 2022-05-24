@@ -1,5 +1,3 @@
-import * as fs from 'fs/promises';
-import * as path from 'path';
 import * as mustache from 'mustache';
 
 interface RenderPageOptions {
