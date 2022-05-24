@@ -24,9 +24,35 @@ interface StaticBuildOptions {
 }
 
 // TODO: Decide where this should live.
-async function copyAssets(assets: Asset[]) {
+async function copyAssets(
+  assets: Asset[],
+  inputDirectory: string,
+  outputDirectory: string
+) {
   for await (const asset of assets) {
-    await fs.cp(asset.inputPath, asset.outputPath);
+    if (asset.inputPath instanceof Array) {
+      let contentsConcatenated = '';
+
+      for await (const inputPath of asset.inputPath) {
+        const contents = await fs.readFile(
+          path.join(inputDirectory, inputPath),
+          'utf8'
+        );
+        contentsConcatenated += `${contents}\n`;
+      }
+
+      await fs.mkdir(
+        path.join(outputDirectory, path.dirname(asset.outputPath)),
+        { recursive: true }
+      );
+      await fs.writeFile(
+        path.join(outputDirectory, asset.outputPath),
+        contentsConcatenated,
+        'utf8'
+      );
+    } else {
+      await fs.cp(asset.inputPath, asset.outputPath);
+    }
   }
 }
 

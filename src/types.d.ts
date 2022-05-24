@@ -10,8 +10,8 @@ interface Args {
 interface Asset {
   /** Name of the file including extension, e.g `image.png` */
   filename: string;
-  /** Path of source file */
-  inputPath: string;
+  /** Path of source file. Supplying multiple paths will concat inputs into a single file. */
+  inputPath: string | string[];
   /** Path of where the file will be copied to */
   outputPath: string;
 }
