@@ -18,6 +18,7 @@
   "author": "Anthony Cossins",
   "license": "ISC",
   "dependencies": {
+    "domino": "^2.1.6",
     "markdown-wasm": "^1.2.0",
     "mustache": "^4.2.0"
   },
