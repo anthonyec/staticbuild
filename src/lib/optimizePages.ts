@@ -18,6 +18,10 @@ interface Document extends DOMNode {
   createElement: (tagName: string) => DOMNode;
 }
 
+function hash(value: string): string {
+  return crypto.createHash('md5').update(value).digest('hex');
+}
+
 function optimizeCSS(document: Document): Asset | null {
   const links = Array.from(document.querySelectorAll('link'));
   const stylesheets = links.filter((link) => {
@@ -31,8 +35,7 @@ function optimizeCSS(document: Document): Asset | null {
   const hrefs = stylesheets.map((stylesheet) => {
     return stylesheet.getAttribute('href');
   });
-  const hash = crypto.createHash('md5').update(hrefs.join()).digest('hex');
-  const filename = `${hash}.css`;
+  const filename = `${hash(hrefs.join())}.css`;
   // TODO: Remove reliance on first path
   const outputPath = path.join(path.dirname(hrefs[0]), filename);
 
@@ -65,11 +68,7 @@ function optimizeJS(document: Document): Asset | null {
     return mem + `${script.innerHTML}\n`;
   }, '');
 
-  const hash = crypto
-    .createHash('md5')
-    .update(concatenatedScript)
-    .digest('hex');
-  const filename = `${hash}.js`;
+  const filename = `${hash(concatenatedScript)}.js`;
   // TODO: Remove hard-coded path
   const outputPath = path.join('/assets/js', filename);
 
