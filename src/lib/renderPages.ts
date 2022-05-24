@@ -51,7 +51,7 @@ function withComputedValues<T>(
 }
 
 export async function renderPages(options: RenderPageOptions) {
-  const renderedPages = [];
+  const renderedPages: Page[] = [];
 
   for await (const page of options.pages) {
     const context: RenderContext = withComputedValues<RenderContext>(['data'], {
