@@ -30,6 +30,15 @@ async function copyAssets(assets: Asset[]) {
   }
 }
 
+async function writePages(pages: Page[]) {
+  for await (const page of pages) {
+    const outputDirectory = path.dirname(page.outputPath);
+
+    await fs.mkdir(outputDirectory, { recursive: true });
+    await fs.writeFile(page.outputPath, page.content, 'utf8');
+  }
+}
+
 export default async function staticbuild(options: StaticBuildOptions) {
   const reloader = createReloader();
 
@@ -43,7 +52,10 @@ export default async function staticbuild(options: StaticBuildOptions) {
     const layouts = await getLayoutsFromFS(config.directories.layouts);
     const partials = await getLayoutsFromFS(config.directories.partials);
     const hooks = {
-      onRenderPage: (context: RenderContext, template: string): string => {
+      onRenderPage: function injectReloaderScript(
+        context: RenderContext,
+        template: string
+      ): string {
         const extension = path.extname(context.page.outputPath);
 
         if (env.devMode && extension === '.html') {
@@ -78,7 +90,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.timeEnd('copy');
 
     console.time('render');
-    await renderPages({
+    const renderedPages = await renderPages({
       pages,
       layouts,
       partials,
@@ -89,6 +101,10 @@ export default async function staticbuild(options: StaticBuildOptions) {
       data
     });
     console.timeEnd('render');
+
+    console.time('write');
+    writePages(renderedPages);
+    console.timeEnd('write');
 
     console.time('clean');
     await cleanOutputDirectory(options.outputDirectory, pages, allAssets);

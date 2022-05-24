@@ -53,8 +53,9 @@ function withComputedValues<T>(
 }
 
 export async function renderPages(options: RenderPageOptions) {
+  const renderedPages = [];
+
   for await (const page of options.pages) {
-    const outputDirectory = path.dirname(page.outputPath);
     const context: RenderContext = withComputedValues<RenderContext>(['data'], {
       env: options.env,
       functions: options.functions,
@@ -71,7 +72,11 @@ export async function renderPages(options: RenderPageOptions) {
       options.partials
     );
 
-    await fs.mkdir(outputDirectory, { recursive: true });
-    await fs.writeFile(page.outputPath, renderedPage, 'utf8');
+    renderedPages.push({
+      ...page,
+      content: renderedPage
+    });
   }
+
+  return renderedPages;
 }

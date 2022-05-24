@@ -15,6 +15,7 @@ I'm currently using this in the following projects:
 - [anthonyec/archive](https://github.com/anthonyec/archive)
 
 ## Features
+
 - Small and flat dependency tree, [markdown-wasm](https://github.com/rsms/markdown-wasm/) and [mustache.js](https://github.com/janl/mustache.js/)
 - Automatic page reloading when files change
 - Configuration is just JavaScript™️
