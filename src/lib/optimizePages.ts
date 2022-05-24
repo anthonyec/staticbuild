@@ -18,6 +18,79 @@ interface Document extends DOMNode {
   createElement: (tagName: string) => DOMNode;
 }
 
+function optimizeCSS(document: Document): Asset | null {
+  const links = Array.from(document.querySelectorAll('link'));
+  const stylesheets = links.filter((link) => {
+    return link.getAttribute('rel') === 'stylesheet';
+  });
+
+  if (stylesheets.length === 0) {
+    return null;
+  }
+
+  const hrefs = stylesheets.map((stylesheet) => {
+    return stylesheet.getAttribute('href');
+  });
+  const hash = crypto.createHash('md5').update(hrefs.join()).digest('hex');
+  const filename = `${hash}.css`;
+  // TODO: Remove reliance on first path
+  const outputPath = path.join(path.dirname(hrefs[0]), filename);
+
+  stylesheets.forEach((stylesheet) => {
+    stylesheet.remove();
+  });
+
+  const css = document.createElement('link');
+
+  css.setAttribute('href', outputPath);
+  css.setAttribute('rel', 'stylesheet');
+
+  document.querySelector('head').appendChild(css);
+
+  return {
+    filename,
+    inputPath: hrefs,
+    outputPath
+  };
+}
+
+function optimizeJS(document: Document): Asset | null {
+  const scripts = Array.from(document.querySelectorAll('script'));
+
+  if (scripts.length === 0) {
+    return null;
+  }
+
+  const concatenatedScript = scripts.reduce((mem, script) => {
+    return mem + `${script.innerHTML}\n`;
+  }, '');
+
+  const hash = crypto
+    .createHash('md5')
+    .update(concatenatedScript)
+    .digest('hex');
+  const filename = `${hash}.js`;
+  // TODO: Remove hard-coded path
+  const outputPath = path.join('/assets/js', filename);
+
+  const js = document.createElement('script');
+
+  js.setAttribute('src', outputPath);
+  js.setAttribute('defer', '');
+
+  document.querySelector('head').appendChild(js);
+
+  scripts.forEach((script) => {
+    script.remove();
+  });
+
+  return {
+    filename,
+    inputPath: `data: ${concatenatedScript}`,
+    outputPath
+  };
+}
+
 export function optimizePages(pages: Page[]): [Page[], Asset[]] {
   const optimizedPages: Page[] = [];
   const extractedAssets: Asset[] = [];
@@ -25,38 +98,16 @@ export function optimizePages(pages: Page[]): [Page[], Asset[]] {
   // TODO: Should non-html pages be filtered out?
   for (const page of pages) {
     const document = createDocument(page.content) as Document;
-    const links = Array.from(document.querySelectorAll('link'));
-    const stylesheets = links.filter((link) => {
-      return link.getAttribute('rel') === 'stylesheet';
-    });
+    const extractedAssetFromCSS = optimizeCSS(document);
+    const extractedAssetFromJS = optimizeJS(document);
 
-    if (stylesheets.length === 0) {
-      continue;
+    if (extractedAssetFromCSS) {
+      extractedAssets.push(extractedAssetFromCSS);
     }
 
-    const hrefs = stylesheets.map((stylesheet) => {
-      return stylesheet.getAttribute('href');
-    });
-    const hash = crypto.createHash('md5').update(hrefs.join()).digest('hex');
-    const filename = `${hash}.css`;
-    const outputPath = path.join(path.dirname(hrefs[0]), filename);
-
-    stylesheets.forEach((stylesheet) => {
-      stylesheet.remove();
-    });
-
-    const css = document.createElement('link');
-
-    css.setAttribute('href', outputPath);
-    css.setAttribute('rel', 'stylesheet');
-
-    document.querySelector('head').appendChild(css);
-
-    extractedAssets.push({
-      filename,
-      inputPath: hrefs,
-      outputPath
-    });
+    if (extractedAssetFromJS) {
+      extractedAssets.push(extractedAssetFromJS);
+    }
 
     optimizedPages.push({
       ...page,
