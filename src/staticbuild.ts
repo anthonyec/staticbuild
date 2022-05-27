@@ -42,7 +42,7 @@ async function writePages(pages: Page[]) {
 export default async function staticbuild(options: StaticBuildOptions) {
   const reloader = createReloader();
 
-  async function build() {
+  async function build(changedFilePaths: string[] = []) {
     console.time('setup');
     const env = getEnvironmentConfig();
     const config = await getUserConfig(options.configPath);
@@ -86,7 +86,18 @@ export default async function staticbuild(options: StaticBuildOptions) {
     // TODO: Filter assets by changed files.
     const allAssets = [...assets, ...getAssetsFromPages(pages)];
 
-    await copyAssets(allAssets);
+    const filteredAssets = allAssets.filter((asset) => {
+      // TODO: Explain why this path is made like this. Hint, it's to get around the double `src/src` bit in a path.
+      const assetInputPath = path.join(
+        options.inputDirectory,
+        path.relative(options.inputDirectory, asset.inputPath)
+      );
+
+      return changedFilePaths.includes(assetInputPath);
+    });
+
+    // TODO: Clean up to not use ternary?
+    await copyAssets(changedFilePaths.length ? filteredAssets : allAssets);
     console.timeEnd('copy');
 
     console.time('render');
@@ -119,14 +130,17 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
     reloader.start();
 
-    await watchDirectoryForChanges(options.inputDirectory, async () => {
-      console.log('---');
-      try {
-        await build();
-        reloader.reload();
-      } catch (err) {
-        console.log('error:', err);
+    await watchDirectoryForChanges(
+      options.inputDirectory,
+      async (changedFilePaths) => {
+        console.log('---');
+        try {
+          await build(changedFilePaths);
+          reloader.reload();
+        } catch (err) {
+          console.log('error:', err);
+        }
       }
-    });
+    );
   }
 }
