@@ -7,7 +7,7 @@
   <br><br>
 </div>
 
-`staticbuild` is a static site generator with minimum dependencies ([markdown-wasm](https://github.com/rsms/markdown-wasm/) and [mustache.js](https://github.com/janl/mustache.js/)) and minimum support for anything other than my own projects.
+`staticbuild` is a static site generator with minimum dependencies and minimum support for anything other than my own projects.
 
 I'm currently using this in the following projects:
 
