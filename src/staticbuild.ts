@@ -11,6 +11,7 @@ import { getCollectionsFromPages } from './lib/getCollectionsFromPages';
 import { getAssetsFromPages } from './lib/getAssetsFromPages';
 import { createReloader } from './lib/reloader';
 import { getEnvironmentConfig } from './lib/env';
+import { optimizePages } from './lib/optimizePages';
 
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */
@@ -119,13 +120,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
     const collections = getCollectionsFromPages(pages);
     console.timeEnd('source');
 
-    console.time('copy');
-    // TODO: Filter assets by changed files.
-    const allAssets = [...assets, ...getAssetsFromPages(pages)];
-
-    await copyAssets(allAssets);
-    console.timeEnd('copy');
-
     console.time('render');
     const renderedPages = await renderPages({
       pages,
@@ -139,12 +133,33 @@ export default async function staticbuild(options: StaticBuildOptions) {
     });
     console.timeEnd('render');
 
+    console.time('optimize');
+    const [optimizedPages, extractedAssets] = optimizePages(renderedPages);
+    console.timeEnd('optimize');
+
     console.time('write');
-    writePages(renderedPages);
+    writePages(optimizedPages);
     console.timeEnd('write');
 
+    // console.log(extractedAssets);
+
+    console.time('copy');
+    // TODO: Filter assets by changed files.
+    const allAssets = [
+      ...assets,
+      ...extractedAssets,
+      ...getAssetsFromPages(pages)
+    ];
+
+    await copyAssets(
+      allAssets,
+      options.inputDirectory,
+      options.outputDirectory
+    );
+    console.timeEnd('copy');
+
     console.time('clean');
-    await cleanOutputDirectory(options.outputDirectory, pages, allAssets);
+    // await cleanOutputDirectory(options.outputDirectory, pages, allAssets);
     console.timeEnd('clean');
   }
 

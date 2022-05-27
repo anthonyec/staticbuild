@@ -41,6 +41,7 @@ export function createReloader() {
       response.setHeader('Content-Type', 'text/event-stream');
       response.setHeader('access-control-allow-origin', '*');
 
+      // TODO: Fix memory leak, reload listeners keep getting added.
       events.on('reload', () => {
         response.write(formatServerSideEvent('reload'));
       });
