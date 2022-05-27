@@ -37,6 +37,7 @@ export async function watchDirectoryForChanges(
         return changeEvent.filename === event.filename;
       });
 
+      // TODO: Add a way to ignore files? Like `.DS_Store`.
       if (!hasExistingEvent) {
         collatedChangeEvents.push(event);
       }

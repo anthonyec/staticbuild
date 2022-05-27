@@ -1,6 +1,7 @@
 import * as path from 'path';
+import * as fs from 'fs/promises';
 
-import { deleteFiles, recursiveReadDirectory } from '../utils/fs';
+import { scanDirectory } from '../utils/fs';
 
 function getExpectedOutputPaths(
   outputDirectory: string,
@@ -25,27 +26,25 @@ export async function cleanOutputDirectory(
   pages: Page[],
   assets: Asset[]
 ) {
-  // TODO: There is a bug with renamed directories leave empty folders around
-  // that don't get deleted.
-
-  // TODO: Make clearer, its confusing about which is absolute and relative and why.
-  const outputAbsolutePaths = await recursiveReadDirectory(outputDirectory);
-  const actualOutputPaths = outputAbsolutePaths.map((outputPath) => {
-    return path.relative(outputDirectory, outputPath);
-  });
   const expectedOutputPaths = getExpectedOutputPaths(
     outputDirectory,
     pages,
     assets
-  );
-  const unexpectedOutputPaths = actualOutputPaths.filter(
-    (outputPath) => !expectedOutputPaths.includes(outputPath)
-  );
-  const unexpectedOutputPathsAbsolute = unexpectedOutputPaths.map(
-    (unexpectedOutputPath) => {
-      return path.join(outputDirectory, unexpectedOutputPath);
-    }
-  );
+  ).map((outputPath) => path.join(outputDirectory, outputPath));
 
-  await deleteFiles(unexpectedOutputPathsAbsolute, outputDirectory);
+  await scanDirectory(outputDirectory, [], async (file) => {
+    // TODO: Rename this long variable.
+    const expectedOutputPathsThatStartWithFilePath = expectedOutputPaths.find(
+      (expectedOutputPath) => {
+        // TODO: Fix start with for folders with similar names, like "example" and "example-2"
+        return expectedOutputPath.startsWith(file.path);
+      }
+    );
+
+    // TODO: This `file.isEmpty` is ducktape over folders with similar name problem.
+    // It will eventually delete the empty file, on 2nd build when watching.
+    if (!expectedOutputPathsThatStartWithFilePath || file.isEmpty) {
+      await fs.rm(file.path, { recursive: true });
+    }
+  });
 }
