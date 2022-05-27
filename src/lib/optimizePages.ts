@@ -97,24 +97,30 @@ export function optimizePages(pages: Page[]): [Page[], Asset[]] {
 
   // TODO: Should non-html pages be filtered out?
   for (const page of pages) {
-    const document = createDocument(page.content) as Document;
-    const extractedAssetFromCSS = optimizeCSS(document);
-    const extractedAssetFromJS = optimizeJS(document);
+    const extension = path.extname(page.outputPath);
 
-    if (extractedAssetFromCSS) {
-      extractedAssets.push(extractedAssetFromCSS);
+    if (extension === '.html') {
+      const document = createDocument(page.content) as Document;
+      const extractedAssetFromCSS = optimizeCSS(document);
+      const extractedAssetFromJS = optimizeJS(document);
+
+      if (extractedAssetFromCSS) {
+        extractedAssets.push(extractedAssetFromCSS);
+      }
+
+      if (extractedAssetFromJS) {
+        extractedAssets.push(extractedAssetFromJS);
+      }
+
+      optimizedPages.push({
+        ...page,
+
+        // TODO: Fix missing doctype on posts!
+        content: document.outerHTML
+      });
+    } else {
+      optimizedPages.push(page);
     }
-
-    if (extractedAssetFromJS) {
-      extractedAssets.push(extractedAssetFromJS);
-    }
-
-    optimizedPages.push({
-      ...page,
-
-      // TODO: Fix missing doctype on posts!
-      content: document.outerHTML
-    });
   }
 
   return [optimizedPages, extractedAssets];
