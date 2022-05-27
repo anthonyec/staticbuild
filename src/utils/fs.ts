@@ -50,11 +50,13 @@ interface File {
   name: string;
   path: string;
   isDirectory: boolean;
+  isEmpty: boolean;
 }
 
 export async function scanDirectory(
   targetDirectory: string,
-  ignorePathsAndDirectories: string[] = []
+  ignorePathsAndDirectories: string[] = [],
+  callback: (file: File) => void = () => {}
 ): Promise<File[]> {
   // Remove `./` from ignored paths.
   const normalizedIgnorePathsAndDirectories = ignorePathsAndDirectories.map(
@@ -83,14 +85,26 @@ export async function scanDirectory(
 
       if (entry.isDirectory()) {
         const subDirectoryFiles = await scan(entryPath);
-        files.push(...subDirectoryFiles);
-      }
 
-      files.push({
-        name: entry.name,
-        path: entryPath,
-        isDirectory: entry.isDirectory()
-      });
+        files.push(...subDirectoryFiles);
+        const file = {
+          name: entry.name,
+          path: entryPath,
+          isDirectory: true,
+          isEmpty: subDirectoryFiles.length === 0
+        };
+        files.push(file);
+        await callback(file);
+      } else {
+        const file = {
+          name: entry.name,
+          path: entryPath,
+          isDirectory: false,
+          isEmpty: false
+        };
+        files.push(file);
+        await callback(file);
+      }
     }
 
     return files;
@@ -99,6 +113,7 @@ export async function scanDirectory(
   return await scan(targetDirectory);
 }
 
+// TODO: Remove this and replace?
 export async function recursiveReadDirectory(
   directoryPath: string
 ): Promise<string[]> {
