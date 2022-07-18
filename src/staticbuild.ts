@@ -11,6 +11,7 @@ import { getCollectionsFromPages } from './lib/getCollectionsFromPages';
 import { getAssetsFromPages } from './lib/getAssetsFromPages';
 import { createReloader } from './lib/reloader';
 import { getEnvironmentConfig } from './lib/env';
+import getBuiltInPartials from './sources/getBuiltInPartials';
 
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */
@@ -50,7 +51,10 @@ export default async function staticbuild(options: StaticBuildOptions) {
     // TODO: Add check for errors with data JSON formatting.
     const data = await getFunctionsFromFS(config.directories.data);
     const layouts = await getLayoutsFromFS(config.directories.layouts);
-    const partials = await getLayoutsFromFS(config.directories.partials);
+    const partials = {
+      ...(await getLayoutsFromFS(config.directories.partials)),
+      ...getBuiltInPartials()
+    };
     const hooks = {
       onRenderPage: function injectReloaderScript(
         context: RenderContext,
