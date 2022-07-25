@@ -11,7 +11,7 @@ import { getCollectionsFromPages } from './lib/getCollectionsFromPages';
 import { getAssetsFromPages } from './lib/getAssetsFromPages';
 import { createReloader } from './lib/reloader';
 import { getEnvironmentConfig } from './lib/getEnvironmentConfig';
-import getBuiltInPartials from './sources/getBuiltInPartials';
+import { getBuiltInPartials } from './sources/getBuiltInPartials';
 
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */

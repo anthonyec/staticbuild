@@ -1,4 +1,4 @@
-export default function getBuiltInPartials() {
+export function getBuiltInPartials() {
   return {
     '__staticbuild_badge': `
       <div class="__staticbuild_badge" style="text-align: center; padding: 15px 0 25px;">
