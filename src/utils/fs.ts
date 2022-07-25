@@ -1,5 +1,5 @@
 import * as fs from 'fs/promises';
-import { constants, Dirent } from 'fs';
+import { constants } from 'fs';
 import * as path from 'path';
 
 const IGNORED_FILES = ['.DS_Store'];

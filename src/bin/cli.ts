@@ -1,7 +1,7 @@
 #! /usr/bin/env node
 import * as fs from 'fs';
 import * as path from 'path';
-import { exit, stdout } from 'process';
+import { stdout } from 'process';
 
 import { staticbuild } from '..';
 
