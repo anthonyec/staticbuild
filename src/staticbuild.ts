@@ -3,14 +3,14 @@ import * as path from 'path';
 
 import { getLayoutsFromFS } from './sources/getLayoutsFromFS';
 import { getFunctionsFromFS } from './sources/getFunctionsFromFS';
-import { getUserConfig } from './lib/config';
+import { getUserConfig } from './lib/getUserConfig';
 import { renderPages } from './lib/renderPages';
 import { watchDirectoryForChanges } from './lib/watchDirectoryForChanges';
 import { cleanOutputDirectory } from './lib/cleanOutputDirectory';
 import { getCollectionsFromPages } from './lib/getCollectionsFromPages';
 import { getAssetsFromPages } from './lib/getAssetsFromPages';
 import { createReloader } from './lib/reloader';
-import { getEnvironmentConfig } from './lib/env';
+import { getEnvironmentConfig } from './lib/getEnvironmentConfig';
 import getBuiltInPartials from './sources/getBuiltInPartials';
 
 interface StaticBuildOptions {
