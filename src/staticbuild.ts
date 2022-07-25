@@ -87,9 +87,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.timeEnd('source');
 
     console.time('copy');
-    // TODO: Filter assets by changed files.
     const allAssets = [...assets, ...getAssetsFromPages(pages)];
-
     const filteredAssets = allAssets.filter((asset) => {
       // TODO: Explain why this path is made like this. Hint, it's to get around the double `src/src` bit in a path.
       const assetInputPath = path.join(
