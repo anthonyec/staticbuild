@@ -55,7 +55,8 @@ export default async function staticbuild(options: StaticBuildOptions) {
       ...(await getLayoutsFromFS(config.directories.partials)),
       ...getBuiltInPartials()
     };
-    const hooks = {
+    // TODO: Tidy up this bit!
+    const hooks: Hooks = {
       onRenderPage: function injectReloaderScript(
         context: RenderContext,
         template: string
@@ -67,7 +68,8 @@ export default async function staticbuild(options: StaticBuildOptions) {
         }
 
         return template;
-      }
+      },
+      ...(await getFunctionsFromFS(config.directories.hooks))
     };
     console.timeEnd('setup');
 
@@ -97,9 +99,11 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
       return changedFilePaths.includes(assetInputPath);
     });
-
     // TODO: Clean up to not use ternary?
-    await copyAssets(changedFilePaths.length ? filteredAssets : allAssets);
+    const assetsToCopy = changedFilePaths.length ? filteredAssets : allAssets;
+
+    await copyAssets(assetsToCopy);
+
     console.timeEnd('copy');
 
     console.time('render');
@@ -122,6 +126,19 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.time('clean');
     await cleanOutputDirectory(options.outputDirectory, pages, allAssets);
     console.timeEnd('clean');
+
+    console.time('generate');
+    if (hooks.onAfterCopyAsset) {
+      const assetsGeneratedAtRuntime: Asset[] = [];
+      for (const asset of allAssets) {
+        const generatedAsset = await hooks.onAfterCopyAsset(asset);
+
+        if (generatedAsset) {
+          assetsGeneratedAtRuntime.push(generatedAsset);
+        }
+      }
+    }
+    console.timeEnd('generate');
   }
 
   await build();

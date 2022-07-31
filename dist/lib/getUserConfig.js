@@ -7,7 +7,8 @@ const DEFAULT_CONFIG = {
         layouts: './src/_layouts',
         partials: './src/_partials',
         functions: './src/_functions',
-        data: './src/_data'
+        data: './src/_data',
+        hooks: './src/_hooks'
     },
     getPages: async () => [],
     getAssets: async () => []
