@@ -5,8 +5,8 @@ interface Config {
         functions: string;
         data: string;
     };
-    getPages: () => Page[];
-    getAssets: () => Asset[];
+    getPages: () => Promise<Page[]>;
+    getAssets: () => Promise<Asset[]>;
 }
 export declare function getUserConfig(configPath: string): Promise<Config>;
 export {};

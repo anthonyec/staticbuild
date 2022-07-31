@@ -25,31 +25,31 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderPages = void 0;
 const mustache = __importStar(require("mustache"));
-function getObjectWithFunctionsInvoked(object, invokedFunctionArgument) {
+async function getObjectWithFunctionsInvoked(object, invokedFunctionArgument) {
     const clonedObject = { ...object };
     for (const key in clonedObject) {
         const value = clonedObject[key];
         if (typeof value === 'function') {
-            clonedObject[key] = value(invokedFunctionArgument);
+            clonedObject[key] = await value(invokedFunctionArgument);
         }
     }
     return clonedObject;
 }
-function withComputedValues(namespacesToCompute, originalStructure) {
+async function withComputedValues(namespacesToCompute, originalStructure) {
     const clonedOriginalStructure = { ...originalStructure };
     for (const namespace of namespacesToCompute) {
         // As keyof T solution found here:
         // https://stackoverflow.com/questions/55012174/why-doesnt-object-keys-return-a-keyof-type-in-typescript/55012175#55012175
         const namespaceObject = clonedOriginalStructure[namespace];
         clonedOriginalStructure[namespace] =
-            getObjectWithFunctionsInvoked(namespaceObject, originalStructure);
+            await getObjectWithFunctionsInvoked(namespaceObject, originalStructure);
     }
     return clonedOriginalStructure;
 }
 async function renderPages(options) {
     const renderedPages = [];
     for await (const page of options.pages) {
-        const context = withComputedValues(['data'], {
+        const context = await withComputedValues(['data'], {
             env: options.env,
             functions: options.functions,
             collections: options.collections,

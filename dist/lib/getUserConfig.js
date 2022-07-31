@@ -9,8 +9,8 @@ const DEFAULT_CONFIG = {
         functions: './src/_functions',
         data: './src/_data'
     },
-    getPages: () => [],
-    getAssets: () => []
+    getPages: async () => [],
+    getAssets: async () => []
 };
 async function getUserConfig(configPath) {
     if (!(await (0, fs_1.checkFileExists)(configPath))) {

@@ -7,8 +7,8 @@ interface Config {
     functions: string;
     data: string;
   };
-  getPages: () => Page[];
-  getAssets: () => Asset[];
+  getPages: () => Promise<Page[]>;
+  getAssets: () => Promise<Asset[]>;
 }
 
 const DEFAULT_CONFIG: Config = {
@@ -18,8 +18,8 @@ const DEFAULT_CONFIG: Config = {
     functions: './src/_functions',
     data: './src/_data'
   },
-  getPages: () => [],
-  getAssets: () => []
+  getPages: async () => [],
+  getAssets: async () => []
 };
 
 export async function getUserConfig(configPath: string): Promise<Config> {

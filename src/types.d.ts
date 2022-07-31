@@ -61,7 +61,7 @@ interface RenderContext {
   env: Env;
   /** Custom data that is provided by either `.js` or `.json` files in the `_data` directory. */
   data: {
-    [name: string]: object | ((context: RenderContext) => object);
+    [name: string]: object | ((context: RenderContext) => object) | Promise<((context: RenderContext) => object)>;
   };
   /** Custom functions that are provided by .js` files that export functions in the `_functions` directory. */
   functions: {

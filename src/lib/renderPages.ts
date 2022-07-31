@@ -15,27 +15,27 @@ interface RenderPageOptions {
   data: RenderContext['data'];
 }
 
-function getObjectWithFunctionsInvoked<T, A>(
+async function getObjectWithFunctionsInvoked<T, A>(
   object: T,
   invokedFunctionArgument: A
-): T {
+): Promise<T> {
   const clonedObject: T = { ...object };
 
   for (const key in clonedObject) {
     const value = clonedObject[key];
 
     if (typeof value === 'function') {
-      clonedObject[key] = value(invokedFunctionArgument);
+      clonedObject[key] = await value(invokedFunctionArgument);
     }
   }
 
   return clonedObject;
 }
 
-function withComputedValues<T>(
+async function withComputedValues<T>(
   namespacesToCompute: string[],
   originalStructure: T
-): T {
+): Promise<T> {
   const clonedOriginalStructure: T = { ...originalStructure };
 
   for (const namespace of namespacesToCompute) {
@@ -44,7 +44,7 @@ function withComputedValues<T>(
     const namespaceObject = clonedOriginalStructure[namespace as keyof T];
 
     clonedOriginalStructure[namespace as keyof T] =
-      getObjectWithFunctionsInvoked(namespaceObject, originalStructure);
+      await getObjectWithFunctionsInvoked(namespaceObject, originalStructure);
   }
 
   return clonedOriginalStructure;
@@ -54,7 +54,7 @@ export async function renderPages(options: RenderPageOptions) {
   const renderedPages = [];
 
   for await (const page of options.pages) {
-    const context: RenderContext = withComputedValues<RenderContext>(['data'], {
+    const context: RenderContext = await withComputedValues<RenderContext>(['data'], {
       env: options.env,
       functions: options.functions,
       collections: options.collections,
