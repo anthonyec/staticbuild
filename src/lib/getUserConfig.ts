@@ -6,6 +6,7 @@ interface Config {
     partials: string;
     functions: string;
     data: string;
+    hooks: string;
   };
   getPages: () => Promise<Page[]>;
   getAssets: () => Promise<Asset[]>;
@@ -16,7 +17,8 @@ const DEFAULT_CONFIG: Config = {
     layouts: './src/_layouts',
     partials: './src/_partials',
     functions: './src/_functions',
-    data: './src/_data'
+    data: './src/_data',
+    hooks: './src/_hooks'
   },
   getPages: async () => [],
   getAssets: async () => []

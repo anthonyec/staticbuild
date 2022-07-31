@@ -54,13 +54,16 @@ export async function renderPages(options: RenderPageOptions) {
   const renderedPages = [];
 
   for await (const page of options.pages) {
-    const context: RenderContext = await withComputedValues<RenderContext>(['data'], {
-      env: options.env,
-      functions: options.functions,
-      collections: options.collections,
-      data: options.data,
-      page
-    });
+    const context: RenderContext = await withComputedValues<RenderContext>(
+      ['data'],
+      {
+        env: options.env,
+        functions: options.functions,
+        collections: options.collections,
+        data: options.data,
+        page
+      }
+    );
     const template =
       (page.layout && options.layouts[page.layout]) || page.content;
 

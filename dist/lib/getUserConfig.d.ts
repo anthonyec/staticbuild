@@ -4,6 +4,7 @@ interface Config {
         partials: string;
         functions: string;
         data: string;
+        hooks: string;
     };
     getPages: () => Promise<Page[]>;
     getAssets: () => Promise<Asset[]>;

@@ -63,6 +63,7 @@ async function staticbuild(options) {
             ...(await (0, getLayoutsFromFS_1.getLayoutsFromFS)(config.directories.partials)),
             ...(0, getBuiltInPartials_1.getBuiltInPartials)()
         };
+        // TODO: Tidy up this bit!
         const hooks = {
             onRenderPage: function injectReloaderScript(context, template) {
                 const extension = path.extname(context.page.outputPath);
@@ -70,7 +71,8 @@ async function staticbuild(options) {
                     return template + reloader.getScript();
                 }
                 return template;
-            }
+            },
+            ...(await (0, getFunctionsFromFS_1.getFunctionsFromFS)(config.directories.hooks))
         };
         console.timeEnd('setup');
         console.time('source');
@@ -92,7 +94,8 @@ async function staticbuild(options) {
             return changedFilePaths.includes(assetInputPath);
         });
         // TODO: Clean up to not use ternary?
-        await copyAssets(changedFilePaths.length ? filteredAssets : allAssets);
+        const assetsToCopy = changedFilePaths.length ? filteredAssets : allAssets;
+        await copyAssets(assetsToCopy);
         console.timeEnd('copy');
         console.time('render');
         const renderedPages = await (0, renderPages_1.renderPages)({

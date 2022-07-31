@@ -55,7 +55,8 @@ export default async function staticbuild(options: StaticBuildOptions) {
       ...(await getLayoutsFromFS(config.directories.partials)),
       ...getBuiltInPartials()
     };
-    const hooks = {
+    // TODO: Tidy up this bit!
+    const hooks: Hooks = {
       onRenderPage: function injectReloaderScript(
         context: RenderContext,
         template: string
@@ -67,7 +68,8 @@ export default async function staticbuild(options: StaticBuildOptions) {
         }
 
         return template;
-      }
+      },
+      ...(await getFunctionsFromFS(config.directories.hooks))
     };
     console.timeEnd('setup');
 
@@ -97,9 +99,11 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
       return changedFilePaths.includes(assetInputPath);
     });
-
     // TODO: Clean up to not use ternary?
-    await copyAssets(changedFilePaths.length ? filteredAssets : allAssets);
+    const assetsToCopy = changedFilePaths.length ? filteredAssets : allAssets;
+
+    await copyAssets(assetsToCopy);
+
     console.timeEnd('copy');
 
     console.time('render');
