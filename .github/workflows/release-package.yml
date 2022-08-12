@@ -1,4 +1,4 @@
-name: "@anthonyec/staticbuild"
+name: Publish package
 
 on:
   release:
