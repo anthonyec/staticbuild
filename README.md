@@ -11,7 +11,7 @@
 
 I'm currently using this in the following projects:
 
-- [anthonyec/website](https://github.com/anthonyec/website)
+- [anthonyec/website](https://github.com/anthonyec/website/tree/move-to-staticbuild-rewrite)
 - [anthonyec/archive](https://github.com/anthonyec/archive)
 
 ## Features
