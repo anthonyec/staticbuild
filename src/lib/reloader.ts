@@ -41,10 +41,11 @@ export function createReloader() {
       response.setHeader('Content-Type', 'text/event-stream');
       response.setHeader('access-control-allow-origin', '*');
 
-      events.on('reload', () => {
+      events.once('reload', () => {
         response.write(formatServerSideEvent('reload'));
       });
     });
+
 
     server.once('error', (err) => {
       if (err instanceof Error && err.code === 'EADDRINUSE') {
