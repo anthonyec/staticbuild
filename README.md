@@ -11,7 +11,7 @@
 
 I'm currently using this in the following projects:
 
-- [anthonyec/website](https://github.com/anthonyec/website)
+- [anthonyec/website](https://github.com/anthonyec/website/tree/move-to-staticbuild-rewrite)
 - [anthonyec/archive](https://github.com/anthonyec/archive)
 
 ## Features
@@ -27,7 +27,7 @@ I was using `jekyll` for generating [my website](https://anthonycossins.com/). B
 
 So out of frustration I built my [own static site generator](https://github.com/anthonyec/static_build) within a couple of hours. It was messy but it worked. And was actually faster than `jekyll` because I don't need it to be as flexible.
 
-This version of `staticbuild` is an attempt to clean things up while still maintaining it's minimalism-ish. Kind following the ["design it twice"](https://www.amazon.co.uk/Philosophy-Software-Design-John-Ousterhout/dp/1732102201) philosophy.
+This version of `staticbuild` is an attempt to clean things up while still maintaining it's minimalism-ish.
 
 ## Usage
 
