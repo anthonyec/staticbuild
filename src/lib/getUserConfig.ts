@@ -25,7 +25,7 @@ const DEFAULT_CONFIG: Config = {
 };
 
 export function getUserConfig(configPath: string): Config {
-  if (!(checkFileExists(configPath))) {
+  if (!checkFileExists(configPath)) {
     return DEFAULT_CONFIG;
   }
 

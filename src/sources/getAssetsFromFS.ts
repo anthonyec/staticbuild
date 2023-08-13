@@ -16,9 +16,7 @@ function replaceStart(
   return replaceString + targetString.slice(searchValue.length);
 }
 
-export default function getAssetsFromFS(
-  options: AssetsOptions
-): Asset[] {
+export default function getAssetsFromFS(options: AssetsOptions): Asset[] {
   const files = scanDirectory(
     options.inputDirectory,
     options.ignorePathsAndDirectories

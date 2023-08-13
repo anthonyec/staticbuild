@@ -26,9 +26,7 @@ export function checkFileExists(filePath: string) {
 }
 
 /** Return names of all directories found at the specified path. */
-export function getDirectoryNames(
-  directoryPath: string
-): string[] {
+export function getDirectoryNames(directoryPath: string): string[] {
   const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
 
   return entries
@@ -114,9 +112,7 @@ export function scanDirectory(
 }
 
 // TODO: Remove this and replace?
-export function recursiveReadDirectory(
-  directoryPath: string
-): string[] {
+export function recursiveReadDirectory(directoryPath: string): string[] {
   function scan(targetDirectoryPath: string) {
     const files: string[] = [];
     const entries = fs.readdirSync(targetDirectoryPath, {

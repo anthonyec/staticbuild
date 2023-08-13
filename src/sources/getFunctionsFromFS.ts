@@ -3,7 +3,7 @@ import * as path from 'path';
 import { checkFileExists, getFileNames, requireUncached } from '../utils/fs';
 
 export function getFunctionsFromFS(functionsDirectory: string) {
-  if (!(checkFileExists(functionsDirectory))) {
+  if (!checkFileExists(functionsDirectory)) {
     return {};
   }
 

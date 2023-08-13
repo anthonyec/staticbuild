@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import { checkFileExists, getFileNames } from '../utils/fs';
 
 export function getLayoutsFromFS(layoutsDirectory: string) {
-  if (!(checkFileExists(layoutsDirectory))) {
+  if (!checkFileExists(layoutsDirectory)) {
     return {};
   }
 
