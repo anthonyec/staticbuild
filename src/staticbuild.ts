@@ -125,7 +125,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.timeEnd('write');
 
     console.time('clean');
-    await cleanOutputDirectory(options.outputDirectory, pages, allAssets);
+    cleanOutputDirectory(options.outputDirectory, pages, allAssets);
     console.timeEnd('clean');
   }
 

@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import { constants } from 'fs';
 import * as path from 'path';
 
@@ -53,23 +54,23 @@ interface File {
   isEmpty: boolean;
 }
 
-export async function scanDirectory(
+export function scanDirectory(
   targetDirectory: string,
   ignorePathsAndDirectories: string[] = [],
   callback: (file: File) => void = () => {}
-): Promise<File[]> {
+): File[] {
   // Remove `./` from ignored paths.
   const normalizedIgnorePathsAndDirectories = ignorePathsAndDirectories.map(
     path.normalize
   );
 
-  async function scan(currentTargetDirectory: string) {
+  function scan(currentTargetDirectory: string) {
     const files: File[] = [];
-    const entries = await fs.readdir(currentTargetDirectory, {
+    const entries = fsSync.readdirSync(currentTargetDirectory, {
       withFileTypes: true
     });
 
-    for await (const entry of entries) {
+    for (const entry of entries) {
       const entryPath = path.join(currentTargetDirectory, entry.name);
       const isIgnored = normalizedIgnorePathsAndDirectories.find(
         (pathOrDirectory) => pathOrDirectory.startsWith(entryPath)
@@ -84,7 +85,7 @@ export async function scanDirectory(
       }
 
       if (entry.isDirectory()) {
-        const subDirectoryFiles = await scan(entryPath);
+        const subDirectoryFiles = scan(entryPath);
 
         files.push(...subDirectoryFiles);
         const file = {
@@ -94,7 +95,7 @@ export async function scanDirectory(
           isEmpty: subDirectoryFiles.length === 0
         };
         files.push(file);
-        await callback(file);
+        callback(file);
       } else {
         const file = {
           name: entry.name,
@@ -103,14 +104,14 @@ export async function scanDirectory(
           isEmpty: false
         };
         files.push(file);
-        await callback(file);
+        callback(file);
       }
     }
 
     return files;
   }
 
-  return await scan(targetDirectory);
+  return scan(targetDirectory);
 }
 
 // TODO: Remove this and replace?
