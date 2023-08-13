@@ -54,6 +54,7 @@ export async function renderPages(options: RenderPageOptions) {
   const renderedPages = [];
 
   for await (const page of options.pages) {
+    // Computed values is asynchronous because values can come from the network.
     const context: RenderContext = await withComputedValues<RenderContext>(
       ['data'],
       {
