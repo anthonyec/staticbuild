@@ -1,4 +1,4 @@
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as markdown from 'markdown-wasm';
 
@@ -112,26 +112,26 @@ function getCommentPropsFromContent(content: string): [CommentProps, string] {
  * });
  * ```
  **/
-export default async function getCollectionFromFS(
+export default function getCollectionFromFS(
   options: CollectionOptions
-): Promise<Page[]> {
+): Page[] {
   const pages = [];
-  const files = await getDirectoryNames(options.inputDirectory);
+  const files = getDirectoryNames(options.inputDirectory);
 
-  for await (const file of files) {
+  for (const file of files) {
     const markdownFilePath = path.join(
       options.inputDirectory,
       file,
       'index.md'
     );
-    const doesMarkdownFileExist = await checkFileExists(markdownFilePath);
+    const doesMarkdownFileExist = checkFileExists(markdownFilePath);
 
     // Avoid any folders that have no markdown files.
     if (!doesMarkdownFileExist) {
       continue;
     }
 
-    const markdownFileContents = await fs.readFile(markdownFilePath, 'utf8');
+    const markdownFileContents = fs.readFileSync(markdownFilePath, 'utf8');
     const content = markdown.parse(markdownFileContents);
     const title = getTitleFromHTML(content);
     const date = getDateFromFilename(file);
@@ -151,7 +151,7 @@ export default async function getCollectionFromFS(
     // `./dist` directory be passed in and subtracted from the path?
     const url = outputDirectory.replace('./dist', '');
 
-    const assetPaths = await recursiveReadDirectory(
+    const assetPaths = recursiveReadDirectory(
       path.join(options.inputDirectory, file)
     );
     const assetsWithoutMarkdownFile = assetPaths.filter((assetPath) => {

@@ -24,8 +24,8 @@ const DEFAULT_CONFIG: Config = {
   getAssets: async () => []
 };
 
-export async function getUserConfig(configPath: string): Promise<Config> {
-  if (!(await checkFileExists(configPath))) {
+export function getUserConfig(configPath: string): Config {
+  if (!checkFileExists(configPath)) {
     return DEFAULT_CONFIG;
   }
 

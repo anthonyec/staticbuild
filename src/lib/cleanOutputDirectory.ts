@@ -1,5 +1,5 @@
 import * as path from 'path';
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
 
 import { scanDirectory } from '../utils/fs';
 
@@ -21,7 +21,7 @@ function getExpectedOutputPaths(
 /**
  * Remove files from output directory that are not expected to be there from built pages or copied assets.
  */
-export async function cleanOutputDirectory(
+export function cleanOutputDirectory(
   outputDirectory: string,
   pages: Page[],
   assets: Asset[]
@@ -32,7 +32,7 @@ export async function cleanOutputDirectory(
     assets
   ).map((outputPath) => path.join(outputDirectory, outputPath));
 
-  await scanDirectory(outputDirectory, [], async (file) => {
+  scanDirectory(outputDirectory, [], (file) => {
     // TODO: Rename this long variable.
     const expectedOutputPathsThatStartWithFilePath = expectedOutputPaths.find(
       (expectedOutputPath) => {
@@ -44,7 +44,7 @@ export async function cleanOutputDirectory(
     // TODO: This `file.isEmpty` is ducktape over folders with similar name problem.
     // It will eventually delete the empty file, on 2nd build when watching.
     if (!expectedOutputPathsThatStartWithFilePath || file.isEmpty) {
-      await fs.rm(file.path, { recursive: true });
+      fs.rmSync(file.path, { recursive: true });
     }
   });
 }

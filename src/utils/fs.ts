@@ -1,4 +1,4 @@
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
 import { constants } from 'fs';
 import * as path from 'path';
 
@@ -10,9 +10,9 @@ export function requireUncached<T>(module: string): T {
 }
 
 /** Returns `true` if a file exists, otherwise `false`. */
-export async function checkFileExists(filePath: string) {
+export function checkFileExists(filePath: string) {
   try {
-    await fs.access(filePath, constants.F_OK);
+    fs.accessSync(filePath, constants.F_OK);
     return true;
   } catch (err) {
     if (err instanceof Error) {
@@ -26,10 +26,8 @@ export async function checkFileExists(filePath: string) {
 }
 
 /** Return names of all directories found at the specified path. */
-export async function getDirectoryNames(
-  directoryPath: string
-): Promise<string[]> {
-  const entries = await fs.readdir(directoryPath, { withFileTypes: true });
+export function getDirectoryNames(directoryPath: string): string[] {
+  const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
 
   return entries
     .filter((entry) => entry.isDirectory())
@@ -37,8 +35,8 @@ export async function getDirectoryNames(
 }
 
 /** Return names of all files found at the specified directoryPath. */
-export async function getFileNames(directoryPath: string): Promise<string[]> {
-  const entries = await fs.readdir(directoryPath, { withFileTypes: true });
+export function getFileNames(directoryPath: string): string[] {
+  const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
 
   return entries
     .filter((entry) => entry.isFile())
@@ -53,23 +51,23 @@ interface File {
   isEmpty: boolean;
 }
 
-export async function scanDirectory(
+export function scanDirectory(
   targetDirectory: string,
   ignorePathsAndDirectories: string[] = [],
   callback: (file: File) => void = () => {}
-): Promise<File[]> {
+): File[] {
   // Remove `./` from ignored paths.
   const normalizedIgnorePathsAndDirectories = ignorePathsAndDirectories.map(
     path.normalize
   );
 
-  async function scan(currentTargetDirectory: string) {
+  function scan(currentTargetDirectory: string) {
     const files: File[] = [];
-    const entries = await fs.readdir(currentTargetDirectory, {
+    const entries = fs.readdirSync(currentTargetDirectory, {
       withFileTypes: true
     });
 
-    for await (const entry of entries) {
+    for (const entry of entries) {
       const entryPath = path.join(currentTargetDirectory, entry.name);
       const isIgnored = normalizedIgnorePathsAndDirectories.find(
         (pathOrDirectory) => pathOrDirectory.startsWith(entryPath)
@@ -84,7 +82,7 @@ export async function scanDirectory(
       }
 
       if (entry.isDirectory()) {
-        const subDirectoryFiles = await scan(entryPath);
+        const subDirectoryFiles = scan(entryPath);
 
         files.push(...subDirectoryFiles);
         const file = {
@@ -94,7 +92,7 @@ export async function scanDirectory(
           isEmpty: subDirectoryFiles.length === 0
         };
         files.push(file);
-        await callback(file);
+        callback(file);
       } else {
         const file = {
           name: entry.name,
@@ -103,27 +101,25 @@ export async function scanDirectory(
           isEmpty: false
         };
         files.push(file);
-        await callback(file);
+        callback(file);
       }
     }
 
     return files;
   }
 
-  return await scan(targetDirectory);
+  return scan(targetDirectory);
 }
 
 // TODO: Remove this and replace?
-export async function recursiveReadDirectory(
-  directoryPath: string
-): Promise<string[]> {
-  async function scan(targetDirectoryPath: string) {
+export function recursiveReadDirectory(directoryPath: string): string[] {
+  function scan(targetDirectoryPath: string) {
     const files: string[] = [];
-    const entries = await fs.readdir(targetDirectoryPath, {
+    const entries = fs.readdirSync(targetDirectoryPath, {
       withFileTypes: true
     });
 
-    for await (const entry of entries) {
+    for (const entry of entries) {
       const entryPath = path.join(targetDirectoryPath, entry.name);
 
       if (IGNORED_FILES.includes(entry.name)) {
@@ -131,7 +127,7 @@ export async function recursiveReadDirectory(
       }
 
       if (entry.isDirectory()) {
-        const subDirectoryFiles = await scan(entryPath);
+        const subDirectoryFiles = scan(entryPath);
         files.push(...subDirectoryFiles);
       }
 
@@ -143,15 +139,15 @@ export async function recursiveReadDirectory(
     return files;
   }
 
-  return await scan(directoryPath);
+  return scan(directoryPath);
 }
 
-export async function deleteFiles(
+export function deleteFiles(
   filePaths: string[],
   expectedDirectoryToDeleteFrom: string,
   dryRun?: boolean
 ) {
-  for await (const filePath of filePaths) {
+  for (const filePath of filePaths) {
     const isFileInExpectedDirectory = filePath.includes(
       expectedDirectoryToDeleteFrom
     );
@@ -165,7 +161,7 @@ export async function deleteFiles(
     if (dryRun) {
       console.warn('[dry run] delete:', filePath);
     } else {
-      await fs.rm(filePath);
+      fs.rmSync(filePath);
     }
   }
 }

@@ -1,4 +1,4 @@
-import * as fs from 'fs/promises';
+import * as fs from 'fs';
 import * as path from 'path';
 
 import { getLayoutsFromFS } from './sources/getLayoutsFromFS';
@@ -25,18 +25,18 @@ interface StaticBuildOptions {
 }
 
 // TODO: Decide where this should live.
-async function copyAssets(assets: Asset[]) {
-  for await (const asset of assets) {
-    await fs.cp(asset.inputPath, asset.outputPath);
+function copyAssets(assets: Asset[]) {
+  for (const asset of assets) {
+    fs.cpSync(asset.inputPath, asset.outputPath);
   }
 }
 
-async function writePages(pages: Page[]) {
-  for await (const page of pages) {
+function writePages(pages: Page[]) {
+  for (const page of pages) {
     const outputDirectory = path.dirname(page.outputPath);
 
-    await fs.mkdir(outputDirectory, { recursive: true });
-    await fs.writeFile(page.outputPath, page.content, 'utf8');
+    fs.mkdirSync(outputDirectory, { recursive: true });
+    fs.writeFileSync(page.outputPath, page.content, 'utf8');
   }
 }
 
@@ -46,13 +46,13 @@ export default async function staticbuild(options: StaticBuildOptions) {
   async function build(changedFilePaths: string[] = []) {
     console.time('setup');
     const env = getEnvironmentConfig();
-    const config = await getUserConfig(options.configPath);
-    const functions = await getFunctionsFromFS(config.directories.functions);
+    const config = getUserConfig(options.configPath);
+    const functions = getFunctionsFromFS(config.directories.functions);
     // TODO: Add check for errors with data JSON formatting.
-    const data = await getFunctionsFromFS(config.directories.data);
-    const layouts = await getLayoutsFromFS(config.directories.layouts);
+    const data = getFunctionsFromFS(config.directories.data);
+    const layouts = getLayoutsFromFS(config.directories.layouts);
     const partials = {
-      ...(await getLayoutsFromFS(config.directories.partials)),
+      ...getLayoutsFromFS(config.directories.partials),
       ...getBuiltInPartials()
     };
     // TODO: Tidy up this bit!
@@ -69,7 +69,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
         return template;
       },
-      ...(await getFunctionsFromFS(config.directories.hooks))
+      ...getFunctionsFromFS(config.directories.hooks)
     };
     console.timeEnd('setup');
 
@@ -102,7 +102,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
     // TODO: Clean up to not use ternary?
     const assetsToCopy = changedFilePaths.length ? filteredAssets : allAssets;
 
-    await copyAssets(assetsToCopy);
+    copyAssets(assetsToCopy);
 
     console.timeEnd('copy');
 
@@ -124,7 +124,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.timeEnd('write');
 
     console.time('clean');
-    await cleanOutputDirectory(options.outputDirectory, pages, allAssets);
+    cleanOutputDirectory(options.outputDirectory, pages, allAssets);
     console.timeEnd('clean');
   }
 

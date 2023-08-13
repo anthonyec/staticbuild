@@ -46,7 +46,6 @@ export function createReloader() {
       });
     });
 
-
     server.once('error', (err) => {
       if (err instanceof Error && err.code === 'EADDRINUSE') {
         port++;
