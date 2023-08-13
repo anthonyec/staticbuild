@@ -116,7 +116,7 @@ export default async function getCollectionFromFS(
   options: CollectionOptions
 ): Promise<Page[]> {
   const pages = [];
-  const files = await getDirectoryNames(options.inputDirectory);
+  const files = getDirectoryNames(options.inputDirectory);
 
   for await (const file of files) {
     const markdownFilePath = path.join(
@@ -124,7 +124,7 @@ export default async function getCollectionFromFS(
       file,
       'index.md'
     );
-    const doesMarkdownFileExist = await checkFileExists(markdownFilePath);
+    const doesMarkdownFileExist = checkFileExists(markdownFilePath);
 
     // Avoid any folders that have no markdown files.
     if (!doesMarkdownFileExist) {

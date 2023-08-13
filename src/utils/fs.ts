@@ -27,10 +27,10 @@ export function checkFileExists(filePath: string) {
 }
 
 /** Return names of all directories found at the specified path. */
-export async function getDirectoryNames(
+export function getDirectoryNames(
   directoryPath: string
-): Promise<string[]> {
-  const entries = await fs.readdir(directoryPath, { withFileTypes: true });
+): string[] {
+  const entries = fsSync.readdirSync(directoryPath, { withFileTypes: true });
 
   return entries
     .filter((entry) => entry.isDirectory())
