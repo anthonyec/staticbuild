@@ -16,10 +16,10 @@ function replaceStart(
   return replaceString + targetString.slice(searchValue.length);
 }
 
-export default async function getAssetsFromFS(
+export default function getAssetsFromFS(
   options: AssetsOptions
-): Promise<Asset[]> {
-  const files = await scanDirectory(
+): Asset[] {
+  const files = scanDirectory(
     options.inputDirectory,
     options.ignorePathsAndDirectories
   );
