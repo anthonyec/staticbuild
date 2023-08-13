@@ -11,9 +11,9 @@ export function requireUncached<T>(module: string): T {
 }
 
 /** Returns `true` if a file exists, otherwise `false`. */
-export async function checkFileExists(filePath: string) {
+export function checkFileExists(filePath: string) {
   try {
-    await fs.access(filePath, constants.F_OK);
+    fsSync.accessSync(filePath, constants.F_OK);
     return true;
   } catch (err) {
     if (err instanceof Error) {

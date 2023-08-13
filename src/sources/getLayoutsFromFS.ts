@@ -4,7 +4,7 @@ import * as fs from 'fs/promises';
 import { checkFileExists, getFileNames } from '../utils/fs';
 
 export async function getLayoutsFromFS(layoutsDirectory: string) {
-  if (!(await checkFileExists(layoutsDirectory))) {
+  if (!(checkFileExists(layoutsDirectory))) {
     return {};
   }
 

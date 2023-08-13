@@ -47,7 +47,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
   async function build(changedFilePaths: string[] = []) {
     console.time('setup');
     const env = getEnvironmentConfig();
-    const config = await getUserConfig(options.configPath);
+    const config = getUserConfig(options.configPath);
     const functions = await getFunctionsFromFS(config.directories.functions);
     // TODO: Add check for errors with data JSON formatting.
     const data = await getFunctionsFromFS(config.directories.data);
