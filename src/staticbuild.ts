@@ -48,12 +48,12 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.time('setup');
     const env = getEnvironmentConfig();
     const config = getUserConfig(options.configPath);
-    const functions = await getFunctionsFromFS(config.directories.functions);
+    const functions = getFunctionsFromFS(config.directories.functions);
     // TODO: Add check for errors with data JSON formatting.
-    const data = await getFunctionsFromFS(config.directories.data);
-    const layouts = await getLayoutsFromFS(config.directories.layouts);
+    const data = getFunctionsFromFS(config.directories.data);
+    const layouts = getLayoutsFromFS(config.directories.layouts);
     const partials = {
-      ...(await getLayoutsFromFS(config.directories.partials)),
+      ...getLayoutsFromFS(config.directories.partials),
       ...getBuiltInPartials()
     };
     // TODO: Tidy up this bit!
@@ -70,7 +70,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
         return template;
       },
-      ...(await getFunctionsFromFS(config.directories.hooks))
+      ...getFunctionsFromFS(config.directories.hooks)
     };
     console.timeEnd('setup');
 

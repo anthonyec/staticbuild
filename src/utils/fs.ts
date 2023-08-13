@@ -38,8 +38,8 @@ export function getDirectoryNames(
 }
 
 /** Return names of all files found at the specified directoryPath. */
-export async function getFileNames(directoryPath: string): Promise<string[]> {
-  const entries = await fs.readdir(directoryPath, { withFileTypes: true });
+export function getFileNames(directoryPath: string): string[] {
+  const entries = fsSync.readdirSync(directoryPath, { withFileTypes: true });
 
   return entries
     .filter((entry) => entry.isFile())
@@ -115,16 +115,16 @@ export function scanDirectory(
 }
 
 // TODO: Remove this and replace?
-export async function recursiveReadDirectory(
+export function recursiveReadDirectory(
   directoryPath: string
-): Promise<string[]> {
-  async function scan(targetDirectoryPath: string) {
+): string[] {
+  function scan(targetDirectoryPath: string) {
     const files: string[] = [];
-    const entries = await fs.readdir(targetDirectoryPath, {
+    const entries = fsSync.readdirSync(targetDirectoryPath, {
       withFileTypes: true
     });
 
-    for await (const entry of entries) {
+    for (const entry of entries) {
       const entryPath = path.join(targetDirectoryPath, entry.name);
 
       if (IGNORED_FILES.includes(entry.name)) {
@@ -132,7 +132,7 @@ export async function recursiveReadDirectory(
       }
 
       if (entry.isDirectory()) {
-        const subDirectoryFiles = await scan(entryPath);
+        const subDirectoryFiles = scan(entryPath);
         files.push(...subDirectoryFiles);
       }
 
@@ -144,15 +144,15 @@ export async function recursiveReadDirectory(
     return files;
   }
 
-  return await scan(directoryPath);
+  return scan(directoryPath);
 }
 
-export async function deleteFiles(
+export function deleteFiles(
   filePaths: string[],
   expectedDirectoryToDeleteFrom: string,
   dryRun?: boolean
 ) {
-  for await (const filePath of filePaths) {
+  for (const filePath of filePaths) {
     const isFileInExpectedDirectory = filePath.includes(
       expectedDirectoryToDeleteFrom
     );
@@ -166,7 +166,7 @@ export async function deleteFiles(
     if (dryRun) {
       console.warn('[dry run] delete:', filePath);
     } else {
-      await fs.rm(filePath);
+      fsSync.rmSync(filePath);
     }
   }
 }
