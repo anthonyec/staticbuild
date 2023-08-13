@@ -1,5 +1,4 @@
-import * as fs from 'fs/promises';
-import * as fsSync from 'fs';
+import * as fs from 'fs';
 import { constants } from 'fs';
 import * as path from 'path';
 
@@ -13,7 +12,7 @@ export function requireUncached<T>(module: string): T {
 /** Returns `true` if a file exists, otherwise `false`. */
 export function checkFileExists(filePath: string) {
   try {
-    fsSync.accessSync(filePath, constants.F_OK);
+    fs.accessSync(filePath, constants.F_OK);
     return true;
   } catch (err) {
     if (err instanceof Error) {
@@ -30,7 +29,7 @@ export function checkFileExists(filePath: string) {
 export function getDirectoryNames(
   directoryPath: string
 ): string[] {
-  const entries = fsSync.readdirSync(directoryPath, { withFileTypes: true });
+  const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
 
   return entries
     .filter((entry) => entry.isDirectory())
@@ -39,7 +38,7 @@ export function getDirectoryNames(
 
 /** Return names of all files found at the specified directoryPath. */
 export function getFileNames(directoryPath: string): string[] {
-  const entries = fsSync.readdirSync(directoryPath, { withFileTypes: true });
+  const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
 
   return entries
     .filter((entry) => entry.isFile())
@@ -66,7 +65,7 @@ export function scanDirectory(
 
   function scan(currentTargetDirectory: string) {
     const files: File[] = [];
-    const entries = fsSync.readdirSync(currentTargetDirectory, {
+    const entries = fs.readdirSync(currentTargetDirectory, {
       withFileTypes: true
     });
 
@@ -120,7 +119,7 @@ export function recursiveReadDirectory(
 ): string[] {
   function scan(targetDirectoryPath: string) {
     const files: string[] = [];
-    const entries = fsSync.readdirSync(targetDirectoryPath, {
+    const entries = fs.readdirSync(targetDirectoryPath, {
       withFileTypes: true
     });
 
@@ -166,7 +165,7 @@ export function deleteFiles(
     if (dryRun) {
       console.warn('[dry run] delete:', filePath);
     } else {
-      fsSync.rmSync(filePath);
+      fs.rmSync(filePath);
     }
   }
 }

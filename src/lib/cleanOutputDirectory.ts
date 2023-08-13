@@ -1,6 +1,5 @@
 import * as path from 'path';
-import * as fs from 'fs/promises';
-import * as fsSync from 'fs';
+import * as fs from 'fs';
 
 import { scanDirectory } from '../utils/fs';
 
@@ -45,7 +44,7 @@ export function cleanOutputDirectory(
     // TODO: This `file.isEmpty` is ducktape over folders with similar name problem.
     // It will eventually delete the empty file, on 2nd build when watching.
     if (!expectedOutputPathsThatStartWithFilePath || file.isEmpty) {
-      fsSync.rmSync(file.path, { recursive: true });
+      fs.rmSync(file.path, { recursive: true });
     }
   });
 }

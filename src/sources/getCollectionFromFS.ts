@@ -1,5 +1,4 @@
-import * as fs from 'fs/promises';
-import * as fsSync from 'fs';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as markdown from 'markdown-wasm';
 
@@ -132,7 +131,7 @@ export default function getCollectionFromFS(
       continue;
     }
 
-    const markdownFileContents = fsSync.readFileSync(markdownFilePath, 'utf8');
+    const markdownFileContents = fs.readFileSync(markdownFilePath, 'utf8');
     const content = markdown.parse(markdownFileContents);
     const title = getTitleFromHTML(content);
     const date = getDateFromFilename(file);

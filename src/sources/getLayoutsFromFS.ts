@@ -1,6 +1,5 @@
 import * as path from 'path';
-import * as fs from 'fs/promises';
-import * as fsSync from 'fs';
+import * as fs from 'fs';
 
 import { checkFileExists, getFileNames } from '../utils/fs';
 
@@ -15,7 +14,7 @@ export function getLayoutsFromFS(layoutsDirectory: string) {
   for (const layoutFilename of layoutFilenames) {
     const { name } = path.parse(layoutFilename);
     const layoutPath = path.join(layoutsDirectory, layoutFilename);
-    const content = fsSync.readFileSync(layoutPath, 'utf8');
+    const content = fs.readFileSync(layoutPath, 'utf8');
 
     layouts[name] = content;
   }

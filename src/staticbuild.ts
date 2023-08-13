@@ -1,5 +1,4 @@
-import * as fs from 'fs/promises';
-import * as fsSync from 'fs';
+import * as fs from 'fs';
 import * as path from 'path';
 
 import { getLayoutsFromFS } from './sources/getLayoutsFromFS';
@@ -28,7 +27,7 @@ interface StaticBuildOptions {
 // TODO: Decide where this should live.
 function copyAssets(assets: Asset[]) {
   for (const asset of assets) {
-    fsSync.cpSync(asset.inputPath, asset.outputPath);
+    fs.cpSync(asset.inputPath, asset.outputPath);
   }
 }
 
@@ -36,8 +35,8 @@ function writePages(pages: Page[]) {
   for (const page of pages) {
     const outputDirectory = path.dirname(page.outputPath);
 
-    fsSync.mkdirSync(outputDirectory, { recursive: true });
-    fsSync.writeFileSync(page.outputPath, page.content, 'utf8');
+    fs.mkdirSync(outputDirectory, { recursive: true });
+    fs.writeFileSync(page.outputPath, page.content, 'utf8');
   }
 }
 
