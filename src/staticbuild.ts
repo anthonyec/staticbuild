@@ -1,4 +1,5 @@
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import * as path from 'path';
 
 import { getLayoutsFromFS } from './sources/getLayoutsFromFS';
@@ -25,9 +26,9 @@ interface StaticBuildOptions {
 }
 
 // TODO: Decide where this should live.
-async function copyAssets(assets: Asset[]) {
-  for await (const asset of assets) {
-    await fs.cp(asset.inputPath, asset.outputPath);
+function copyAssets(assets: Asset[]) {
+  for (const asset of assets) {
+    fsSync.cpSync(asset.inputPath, asset.outputPath);
   }
 }
 
@@ -102,7 +103,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
     // TODO: Clean up to not use ternary?
     const assetsToCopy = changedFilePaths.length ? filteredAssets : allAssets;
 
-    await copyAssets(assetsToCopy);
+    copyAssets(assetsToCopy);
 
     console.timeEnd('copy');
 
