@@ -32,7 +32,7 @@ export function cleanOutputDirectory(
     assets
   ).map((outputPath) => path.join(outputDirectory, outputPath));
 
-  scanDirectory(outputDirectory, [], async (file) => {
+  scanDirectory(outputDirectory, [], (file) => {
     // TODO: Rename this long variable.
     const expectedOutputPathsThatStartWithFilePath = expectedOutputPaths.find(
       (expectedOutputPath) => {
