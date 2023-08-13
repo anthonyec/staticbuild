@@ -32,12 +32,12 @@ function copyAssets(assets: Asset[]) {
   }
 }
 
-async function writePages(pages: Page[]) {
-  for await (const page of pages) {
+function writePages(pages: Page[]) {
+  for (const page of pages) {
     const outputDirectory = path.dirname(page.outputPath);
 
-    await fs.mkdir(outputDirectory, { recursive: true });
-    await fs.writeFile(page.outputPath, page.content, 'utf8');
+    fsSync.mkdirSync(outputDirectory, { recursive: true });
+    fsSync.writeFileSync(page.outputPath, page.content, 'utf8');
   }
 }
 
