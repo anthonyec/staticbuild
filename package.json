@@ -1,13 +1,15 @@
 {
   "name": "@anthonyec/staticbuild",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "Static site generator that isn't for you",
   "main": "dist/index.js",
   "repository": "https://github.com/anthonyec/staticbuild.git",
   "bin": {
     "staticbuild": "dist/bin/cli.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "debug": "tsc --watch",
