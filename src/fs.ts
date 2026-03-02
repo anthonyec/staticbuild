@@ -98,37 +98,6 @@ export function scanDirectory(targetDirectory: string, ignorePathsAndDirectories
   return scan(targetDirectory)
 }
 
-// TODO: Remove this and replace?
-export function recursiveReadDirectory(directoryPath: string): string[] {
-  function scan(targetDirectoryPath: string) {
-    const files: string[] = []
-    const entries = fs.readdirSync(targetDirectoryPath, {
-      withFileTypes: true,
-    })
-
-    for (const entry of entries) {
-      const entryPath = path.join(targetDirectoryPath, entry.name)
-
-      if (IGNORED_FILES.includes(entry.name)) {
-        continue
-      }
-
-      if (entry.isDirectory()) {
-        const subDirectoryFiles = scan(entryPath)
-        files.push(...subDirectoryFiles)
-      }
-
-      if (entry.isFile()) {
-        files.push(entryPath)
-      }
-    }
-
-    return files
-  }
-
-  return scan(directoryPath)
-}
-
 export function deleteFiles(filePaths: string[], expectedDirectoryToDeleteFrom: string, dryRun?: boolean) {
   for (const filePath of filePaths) {
     const isFileInExpectedDirectory = filePath.includes(expectedDirectoryToDeleteFrom)

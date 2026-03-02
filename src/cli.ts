@@ -72,7 +72,7 @@ async function main() {
   await staticbuild({
     inputDirectory: path.join(process.cwd(), inputDirectory),
     outputDirectory: path.join(process.cwd(), outputDirectory),
-    configPath: path.join(process.cwd(), ".staticbuildrc.js"),
+    configPath: path.join(process.cwd(), ".staticbuild"),
     ...options,
   })
 }

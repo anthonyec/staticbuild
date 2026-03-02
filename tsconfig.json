@@ -4,7 +4,12 @@
     "outDir": "dist",
     "strict": true,
     "declaration": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "noImplicitAny": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
   },
   "include": ["src"],
   "exclude": ["node_modules"]
