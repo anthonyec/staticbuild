@@ -44,6 +44,7 @@ export function getFileNames(directoryPath: string): string[] {
 
 interface File {
   name: string
+  filename: string
   path: string
   isDirectory: boolean
   isEmpty: boolean
@@ -73,7 +74,8 @@ export function scanDirectory(targetDirectory: string, ignorePathsAndDirectories
         files.push(...subDirectoryFiles)
 
         const file = {
-          name: entry.name,
+          name: path.parse(entry.name).name,
+          filename: entry.name,
           path: entryPath,
           isDirectory: true,
           isEmpty: subDirectoryFiles.length === 0,
@@ -82,7 +84,8 @@ export function scanDirectory(targetDirectory: string, ignorePathsAndDirectories
         files.push(file)
       } else {
         const file = {
-          name: entry.name,
+          name: path.parse(entry.name).name,
+          filename: entry.name,
           path: entryPath,
           isDirectory: false,
           isEmpty: false,
