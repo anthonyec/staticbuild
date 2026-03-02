@@ -1,6 +1,6 @@
 {
   "name": "@anthonyec/staticbuild",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "Static site generator that isn't for you",
   "main": "dist/index.js",
   "repository": {
