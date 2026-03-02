@@ -29,11 +29,11 @@
     "mustache": "^4.2.0"
   },
   "devDependencies": {
-    "@tsconfig/node17": "^1.0.0",
+    "@tsconfig/node24": "^24.0.4",
     "@types/mustache": "^4.1.2",
-    "@types/node": "^17.0.25",
+    "@types/node": "^25.3.3",
     "prettier": "^2.6.2",
-    "typescript": "^4.6.3"
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=24.0.0"

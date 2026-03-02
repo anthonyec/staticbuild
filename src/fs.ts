@@ -49,11 +49,7 @@ interface File {
   isEmpty: boolean
 }
 
-export function scanDirectory(
-  targetDirectory: string,
-  ignorePathsAndDirectories: string[] = [],
-  callback: (file: File) => void = () => {},
-): File[] {
+export function scanDirectory(targetDirectory: string, ignorePathsAndDirectories: string[] = []): File[] {
   // Remove `./` from ignored paths.
   const normalizedIgnorePathsAndDirectories = ignorePathsAndDirectories.map(path.normalize)
 
@@ -69,26 +65,21 @@ export function scanDirectory(
         pathOrDirectory.startsWith(entryPath),
       )
 
-      if (isIgnored) {
-        continue
-      }
-
-      if (IGNORED_FILES.includes(entry.name)) {
-        continue
-      }
+      if (isIgnored) continue
+      if (IGNORED_FILES.includes(entry.name)) continue
 
       if (entry.isDirectory()) {
         const subDirectoryFiles = scan(entryPath)
-
         files.push(...subDirectoryFiles)
+
         const file = {
           name: entry.name,
           path: entryPath,
           isDirectory: true,
           isEmpty: subDirectoryFiles.length === 0,
         }
+
         files.push(file)
-        callback(file)
       } else {
         const file = {
           name: entry.name,
@@ -96,8 +87,8 @@ export function scanDirectory(
           isDirectory: false,
           isEmpty: false,
         }
+
         files.push(file)
-        callback(file)
       }
     }
 

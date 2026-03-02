@@ -18,9 +18,13 @@ export async function watcher(targetDirectoryPath: string, onChange: (changedFil
   })
 
   const onChangeDebounced = debounce(() => {
-    const changedFilePaths = collatedChangeEvents.map((changeEvent) => {
-      return path.join(targetDirectoryPath, changeEvent.filename)
-    })
+    const changedFilePaths: string[] = []
+
+    for (const changeEvent of collatedChangeEvents) {
+      if (changeEvent.filename == null) continue
+
+      changedFilePaths.push(path.join(targetDirectoryPath, changeEvent.filename))
+    }
 
     onChange(changedFilePaths)
     collatedChangeEvents = []
