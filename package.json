@@ -8,7 +8,7 @@
     "url": "git+https://github.com/anthonyec/staticbuild.git"
   },
   "bin": {
-    "staticbuild": "dist/bin/cli.js"
+    "staticbuild": "dist/cli.js"
   },
   "files": [
     "dist"

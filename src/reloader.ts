@@ -1,13 +1,13 @@
-import * as http from 'http';
-import { EventEmitter } from 'events';
+import * as http from "http"
+import { EventEmitter } from "events"
 
 function formatServerSideEvent(name: string, message?: string) {
-  return `event: ${name}\ndata: ${message}\n\n`;
+  return `event: ${name}\ndata: ${message}\n\n`
 }
 
 export function createReloader() {
-  let port = 4000;
-  const events = new EventEmitter();
+  let port = 4000
+  const events = new EventEmitter()
 
   function getScript(port: number) {
     return `
@@ -33,32 +33,32 @@ export function createReloader() {
           });
         })();
       </script>
-    `;
+    `
   }
 
   function start() {
     const server = http.createServer(function (_request, response) {
-      response.setHeader('Content-Type', 'text/event-stream');
-      response.setHeader('access-control-allow-origin', '*');
+      response.setHeader("Content-Type", "text/event-stream")
+      response.setHeader("access-control-allow-origin", "*")
 
-      events.once('reload', () => {
-        response.write(formatServerSideEvent('reload'));
-      });
-    });
+      events.once("reload", () => {
+        response.write(formatServerSideEvent("reload"))
+      })
+    })
 
-    server.once('error', (err) => {
-      if (err instanceof Error && err.code === 'EADDRINUSE') {
-        port++;
-        start();
+    server.once("error", (err) => {
+      if (err instanceof Error && err.code === "EADDRINUSE") {
+        port++
+        start()
       }
-    });
+    })
 
-    server.listen(port);
+    server.listen(port)
   }
 
   return {
     getScript: () => getScript(port),
-    reload: () => events.emit('reload'),
-    start
-  };
+    reload: () => events.emit("reload"),
+    start,
+  }
 }
