@@ -3,7 +3,10 @@
   "version": "0.0.13",
   "description": "Static site generator that isn't for you",
   "main": "dist/index.js",
-  "repository": "https://github.com/anthonyec/staticbuild.git",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anthonyec/staticbuild.git"
+  },
   "bin": {
     "staticbuild": "dist/bin/cli.js"
   },

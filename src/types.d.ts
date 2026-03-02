@@ -8,7 +8,7 @@ interface Args {
 }
 
 interface Asset {
-  /** Name of the file including extension, e.g `image.png` */
+  /** Name of the file including the extension, e.g `image.png` */
   filename: string;
   /** Path of source file */
   inputPath: string;
@@ -37,7 +37,7 @@ interface Page {
   assets?: Asset[];
 }
 
-interface Env {
+interface EnvironmentVariables {
   devMode: boolean;
 }
 
@@ -49,24 +49,33 @@ type Collections = { [name: string]: Page[] };
 
 type MustacheFunction = () => (
   text: string,
-  render: (template: string) => string
+  subRender: (template: string) => string
 ) => string;
 
 /**
- * Variables that are supplied to every rendered page.
+ * Info that is supplied to every page when being rendered.
  *
  * They are equivalent to [Eleventy supplied data](https://www.11ty.dev/docs/data-eleventy-supplied/) or [Jekyll global variables](https://jekyllrb.com/docs/variables/).
  */
 interface RenderContext {
-  env: Env;
-  /** Custom data that is provided by either `.js` or `.json` files in the `_data` directory. */
+  env: EnvironmentVariables;
+  /**
+   * Custom data object that is returned from either a `.js` or `.json` file in
+   * the `_data` directory.
+   *
+   * If using a `.js` file, a function (async or sync) can be used to compute
+   * data and return it as an object.
+   * */
   data: {
     [name: string]:
       | object
       | ((context: RenderContext) => object)
       | Promise<(context: RenderContext) => object>;
   };
-  /** Custom functions that are provided by .js` files that export functions in the `_functions` directory. */
+  /**
+   * Custom template functions that are provided by `.js` files in the
+   * `_functions` directory.
+   * */
   functions: {
     [name: string]: MustacheFunction;
   };

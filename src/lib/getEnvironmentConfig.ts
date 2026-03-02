@@ -1,4 +1,4 @@
-export function getEnvironmentConfig(): Env {
+export function getEnvironmentConfig(): EnvironmentVariables {
   return {
     devMode: process.env.NODE_ENV === 'dev'
   };
