@@ -21,39 +21,29 @@ interface StaticBuildOptions {
   ignoredPaths?: string[]
 }
 
-interface ExternalAsset {
-  inputPath: string
-}
-
-interface InlineAsset {
-  contents: string
-}
-
-type Asset = { type: "css" | "js" } & (ExternalAsset | InlineAsset)
+type FileID = string
 
 type MemoryFile = {
-  buffer: ArrayBuffer
+  buffer: Buffer<ArrayBuffer>
 }
 
 type ExternalFile = {
   inputPath: string
 }
 
-type File = { type: "css" | "js" | "unknown", outputPath: string } & (MemoryFile | ExternalFile)
-
-interface Page {
-  title: string
-  html: string
-  inputPath: string
-  assets: Asset[]
+type File = (MemoryFile | ExternalFile) & {
+  outputPath: string
 }
 
-function isExternalAsset(asset: unknown): asset is ExternalAsset {
-  return asset != null && typeof asset == "object" && "inputPath" in asset
+const files: Map<FileID, File> = new Map()
+const dependencies: Map<FileID, FileID> = new Map()
+
+function isMemoryFile(value: unknown): value is MemoryFile {
+  return value != null && typeof value == "object" && "buffer" in value
 }
 
-function isInlineAsset(asset: unknown): asset is ExternalAsset {
-  return asset != null && typeof asset == "object" && "contents" in asset
+function isExternalFile(value: unknown): value is ExternalFile {
+  return value != null && typeof value == "object" && "inputPath" in value
 }
 
 function hash(value: string): string {
@@ -72,13 +62,43 @@ function getPartials(options: StaticBuildOptions): Partials {
   return partials
 }
 
+function shouldSkipFilePath(relativeFilePath: string, ignoredPaths: string[] = []): boolean {
+  if (relativeFilePath.startsWith("_")) {
+    return true
+  }
+
+  for (const ignoredPath of ignoredPaths || []) {
+    const normalizedIgnoredPath = path.normalize(ignoredPath)
+
+    if (relativeFilePath.startsWith(normalizedIgnoredPath)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function createDependencyBetween(a: FileID, b: FileID) {
+  dependencies.set(a, b)
+  dependencies.set(b, a)
+}
+
+function removeDependencyBetween(a: FileID, b: FileID) {
+  dependencies.delete(a)
+  dependencies.delete(b)
+}
+
+function getDependenciesFor(fileID: FileID): File[] {
+  return []
+}
+
 export default async function staticbuild(options: StaticBuildOptions) {
   const reloader = createReloader()
 
   // @NOCHECKIN
-  options.ignoredPaths = ["./v/", "./_layouts", "./_partials"]
+  options.ignoredPaths = ["./v/", "./_layouts", "./_partials", "./assets"]
 
-  async function build(changedFilePaths: string[] = []) {
+  const build = async (changedFilePaths: string[] = []) => {
     console.time("build")
 
     if (changedFilePaths.length == 0) {
@@ -87,121 +107,116 @@ export default async function staticbuild(options: StaticBuildOptions) {
       }
     }
 
-    const pages: Page[] = []
+    for (const absoluteFilePath of changedFilePaths) {
+      const fileID = hash(absoluteFilePath)
 
-    changes: for (const absoluteFilePath of changedFilePaths) {
-      const relativeFilePath = absoluteFilePath.replace(path.join(options.inputDirectory, "/"), "")
+      if (!fs.existsSync(absoluteFilePath)) {
+        const existingFile = files.get(fileID)
+        if (!existingFile) continue
 
-      if (relativeFilePath.startsWith("_")) {
-        continue changes
-      }
+        fs.unlinkSync(existingFile.outputPath)
+        files.delete(fileID)
 
-      for (const ignoredPath of options.ignoredPaths || []) {
-        const normalizedIgnoredPath = path.normalize(ignoredPath)
-
-        if (relativeFilePath.startsWith(normalizedIgnoredPath)) {
-          continue changes
+        for (const dependency of getDependenciesFor(fileID)) {
+          // Remove link
+            // If link to file was last link, remove file and repeat.
         }
+
+        continue
       }
 
-      const fileExtension = path.extname(absoluteFilePath)
+      if (fs.statSync(absoluteFilePath).isDirectory()) continue
 
-      switch (fileExtension) {
+      const relativeFilePath = absoluteFilePath.replace(path.join(options.inputDirectory, "/"), "")
+      if (shouldSkipFilePath(relativeFilePath, options.ignoredPaths)) continue
+
+      const extension = path.extname(absoluteFilePath)
+      const name = path.basename(absoluteFilePath, extension)
+
+      switch (extension) {
         case ".html": {
-          const page: Page = {
-            title: "",
-            html: "",
-            inputPath: relativeFilePath,
-            assets: [],
-          }
-
           // Render template tags.
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
-          page.html = Mustache.render(fileContents, {}, getPartials(options))
+
+          // const template = Mustache.parse(fileContents)
+          // console.log(template)
+          const html = Mustache.render(fileContents, {}, getPartials(options))
 
           // Parse HTML.
-          const root = parseHTML(page.html)
+          const document = parseHTML(html)
 
-          // Collect CSS and JS assets.
-          const externalStylesheets = root.querySelectorAll('link[rel="stylesheet"]')
-          const externalScripts = root.querySelectorAll("script[src]")
-          const inlineStylesheets = root.querySelectorAll("style")
-          const inlineScripts = root.querySelectorAll("script:not([src])")
+          for (const inlineScript of document.querySelectorAll("script:not([src])")) {
+            const textContent = inlineScript.textContent
+            const scriptFileID = hash(textContent)
 
-          for (const node of externalScripts) {
-            const src = node.getAttribute("src")
-            if (!src) continue
-            if (src.startsWith("http")) continue
+            files.set(scriptFileID, {
+              buffer: Buffer.from(inlineScript.textContent),
+              outputPath: path.join(options.outputDirectory, "assets", scriptFileID + ".js")
+            })
 
-            page.assets.push({ type: "js", inputPath: path.join(options.inputDirectory, src) })
-            node.parentNode.removeChild(node)
+            createDependencyBetween(fileID, scriptFileID)
           }
 
-          for (const node of externalStylesheets) {
-            const href = node.getAttribute("href")
-            if (!href) continue
-
-            page.assets.push({ type: "css", inputPath: path.join(options.inputDirectory, href) })
-            node.parentNode.removeChild(node)
-          }
-
-          for (const node of inlineStylesheets) {
-            const textContent = node.textContent
-            if (!textContent) continue
-
-            page.assets.push({ type: "css", contents: textContent })
-            node.parentNode.removeChild(node)
-          }
-
-          for (const node of inlineScripts) {
-            const textContent = node.textContent
-            if (!textContent) continue
-
-            page.assets.push({ type: "js", contents: textContent })
-            node.parentNode.removeChild(node)
-          }
-
-          // Add page.
-          pages.push(page)
+          files.set(fileID, {
+            inputPath: absoluteFilePath,
+            outputPath: path.join(options.outputDirectory, relativeFilePath),
+          })
         }
 
         default:
           continue
+
+        // default:
+        //   files.set(filename, {
+        //     dependencies: [],
+        //     inputPath: absoluteFilePath,
+        //     outputPath: path.join(options.outputDirectory, relativeFilePath)
+        //   })
       }
     }
 
-    for (const page of pages) {
-      let combinedCssFilename = ""
-      let combinedCssContents = ""
+    console.log(files)
+    console.log(dependencies)
 
-      for (const asset of page.assets) {
-        if (!isExternalAsset(asset)) continue
+    for (const [filename, file] of files) {
+      const buffer: Buffer<ArrayBuffer> = isExternalFile(file)
+      ? Buffer.from(fs.readFileSync(file.inputPath))
+      : file.buffer
+      
+      fs.mkdirSync(path.dirname(file.outputPath), { recursive: true })
+      fs.writeFileSync(file.outputPath, buffer)
 
-        if (asset.type == "css") {
-          combinedCssFilename += path.basename(asset.inputPath)
-          combinedCssContents += fs.readFileSync(asset.inputPath, "utf8")
-        }
-      }
+      //   let combinedCssFilename = ""
+      //   let combinedCssContents = ""
 
-      const cssFilename = hash(combinedCssFilename) + ".css"
-      const cssOutputDirectory = path.join(options.outputDirectory, "./assets/css")
-      fs.mkdirSync(cssOutputDirectory, { recursive: true })
-      fs.writeFileSync(path.join(cssOutputDirectory, cssFilename), combinedCssContents)
+      //   for (const asset of page.assets) {
+      //     if (!isExternalAsset(asset)) continue
 
-      const root = parseHTML(page.html)
-      let headElement = root.querySelector("head")
+      //     if (asset.type == "css") {
+      //       combinedCssFilename += path.basename(asset.inputPath)
+      //       combinedCssContents += fs.readFileSync(asset.inputPath, "utf8")
+      //     }
+      //   }
 
-      if (!headElement) {
-        headElement = parseHTML("<head></head>")
-        root.prepend(headElement)
-      }
+      //   const cssFilename = hash(combinedCssFilename) + ".css"
+      //   const cssOutputDirectory = path.join(options.outputDirectory, "./assets/css")
+      //   fs.mkdirSync(cssOutputDirectory, { recursive: true })
+      //   fs.writeFileSync(path.join(cssOutputDirectory, cssFilename), combinedCssContents)
 
-      headElement.append(`<link rel="" href="/assets/css/${cssFilename}">`)
-      page.html = root.toString()
+      //   const root = parseHTML(page.html)
+      //   let headElement = root.querySelector("head")
 
-      const outputPath: string = path.join(options.outputDirectory, page.inputPath)
-      fs.mkdirSync(path.dirname(outputPath), { recursive: true })
-      fs.writeFileSync(outputPath, page.html)
+      //   if (!headElement) {
+      //     headElement = parseHTML("<head></head>")
+      //     root.prepend(headElement)
+      //   }
+
+      //   headElement.append(`<link rel="" href="/assets/css/${cssFilename}">`)
+      //   page.html = root.toString()
+
+      //   const outputPath: string = path.join(options.outputDirectory, page.inputPath)
+      //   fs.mkdirSync(path.dirname(outputPath), { recursive: true })
+      //   fs.writeFileSync(outputPath, page.html)
     }
 
     console.timeEnd("build")
