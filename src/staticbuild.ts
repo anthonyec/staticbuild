@@ -36,7 +36,7 @@ type File = (MemoryFile | ExternalFile) & {
 }
 
 const files: Map<FileID, File> = new Map()
-const dependencies: Map<FileID, FileID> = new Map()
+const dependencies: Map<FileID, Set<FileID>> = new Map()
 
 function isMemoryFile(value: unknown): value is MemoryFile {
   return value != null && typeof value == "object" && "buffer" in value
@@ -78,14 +78,15 @@ function shouldSkipFilePath(relativeFilePath: string, ignoredPaths: string[] = [
   return false
 }
 
-function createDependencyBetween(a: FileID, b: FileID) {
-  dependencies.set(a, b)
-  dependencies.set(b, a)
+function createDependency(from: FileID, to: FileID) {
+  const existingDependencies = dependencies.get(from) || new Set()
+  existingDependencies.add(to)
+
+  dependencies.set(from, existingDependencies)
 }
 
-function removeDependencyBetween(a: FileID, b: FileID) {
+function removeDependency(a: FileID, b: FileID) {
   dependencies.delete(a)
-  dependencies.delete(b)
 }
 
 function getDependenciesFor(fileID: FileID): File[] {
@@ -119,7 +120,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
         for (const dependency of getDependenciesFor(fileID)) {
           // Remove link
-            // If link to file was last link, remove file and repeat.
+          // If link to file was last link, remove file and repeat.
         }
 
         continue
@@ -137,24 +138,50 @@ export default async function staticbuild(options: StaticBuildOptions) {
         case ".html": {
           // Render template tags.
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
-
-          // const template = Mustache.parse(fileContents)
-          // console.log(template)
           const html = Mustache.render(fileContents, {}, getPartials(options))
 
           // Parse HTML.
           const document = parseHTML(html)
 
-          for (const inlineScript of document.querySelectorAll("script:not([src])")) {
-            const textContent = inlineScript.textContent
-            const scriptFileID = hash(textContent)
+          for (const externalSourceElement of document.querySelectorAll("img, video, script, link")) {
+            const sourcePath = externalSourceElement.getAttribute("src") || externalSourceElement.getAttribute("href")
+            if (!sourcePath) continue
+            if (sourcePath.startsWith("http")) continue
 
-            files.set(scriptFileID, {
-              buffer: Buffer.from(inlineScript.textContent),
-              outputPath: path.join(options.outputDirectory, "assets", scriptFileID + ".js")
+            const inputSourcePath = path.normalize(path.join(options.inputDirectory, sourcePath))
+            if (!fs.existsSync(inputSourcePath)) continue
+
+            const sourceFileID = hash(inputSourcePath)
+            const outputPath = path.join(
+              options.outputDirectory,
+              "assets",
+              sourceFileID + path.extname(inputSourcePath),
+            )
+
+            files.set(sourceFileID, {
+              inputPath: inputSourcePath,
+              outputPath,
             })
 
-            createDependencyBetween(fileID, scriptFileID)
+            createDependency(fileID, sourceFileID)
+          }
+
+          files.set(fileID, {
+            inputPath: absoluteFilePath,
+            outputPath: path.join(options.outputDirectory, relativeFilePath),
+          })
+
+          for (const inlineCodeElement of document.querySelectorAll("style, script:not([src])")) {
+            const textContent = inlineCodeElement.textContent
+            const inlineCodeFileID = hash(textContent)
+            const inlineCodeExtension = inlineCodeElement.tagName == "STYLE" ? ".css" : ".js"
+
+            files.set(inlineCodeFileID, {
+              buffer: Buffer.from(textContent),
+              outputPath: path.join(options.outputDirectory, "assets", inlineCodeFileID + inlineCodeExtension),
+            })
+
+            createDependency(fileID, inlineCodeFileID)
           }
 
           files.set(fileID, {
@@ -165,13 +192,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
         default:
           continue
-
-        // default:
-        //   files.set(filename, {
-        //     dependencies: [],
-        //     inputPath: absoluteFilePath,
-        //     outputPath: path.join(options.outputDirectory, relativeFilePath)
-        //   })
       }
     }
 
@@ -180,9 +200,9 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
     for (const [filename, file] of files) {
       const buffer: Buffer<ArrayBuffer> = isExternalFile(file)
-      ? Buffer.from(fs.readFileSync(file.inputPath))
-      : file.buffer
-      
+        ? Buffer.from(fs.readFileSync(file.inputPath))
+        : file.buffer
+
       fs.mkdirSync(path.dirname(file.outputPath), { recursive: true })
       fs.writeFileSync(file.outputPath, buffer)
 
