@@ -1,6 +1,12 @@
 import * as http from "http"
 import { EventEmitter } from "events"
 
+interface Reloader {
+  getScript: () => string
+  reload: () => void
+  start: () => void
+}
+
 function formatServerSideEvent(name: string, message?: string) {
   return `event: ${name}\ndata: ${message}\n\n`
 }

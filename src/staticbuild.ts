@@ -221,10 +221,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
       const relativeFilePath = absoluteFilePath.replace(path.join(options.inputDirectory, "/"), "")
       if (shouldSkipFilePath(relativeFilePath, options.ignoredPaths)) continue
 
-      const extension = path.extname(absoluteFilePath)
-      const name = path.basename(absoluteFilePath, extension)
-
-      switch (extension) {
+      switch (path.extname(absoluteFilePath)) {
         case ".html": {
           // Render template tags.
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
@@ -236,6 +233,10 @@ export default async function staticbuild(options: StaticBuildOptions) {
           collectAssets(options.inputDirectory, options.outputDirectory, document, files)
           collectInlineCode(options.outputDirectory, document, files)
 
+          if (options.watch) {
+            document.append(reloader.getScript())
+          }
+
           files.set(fileID, {
             buffer: Buffer.from(document.toString()),
             outputPath: path.join(options.outputDirectory, relativeFilePath),
@@ -246,8 +247,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
           continue
       }
     }
-
-    // console.log(files)
 
     for (const [_, file] of files) {
       const buffer: Buffer<ArrayBuffer> = isExternalFile(file)
