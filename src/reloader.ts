@@ -17,7 +17,7 @@ export function createReloader() {
 
   function getScript(port: number) {
     return `
-      <script>
+      <script defer>
         // This script is added by staticbuild to enable auto-reloading when files change.
         (function() {
           const client = new EventSource('http://localhost:${port}/');

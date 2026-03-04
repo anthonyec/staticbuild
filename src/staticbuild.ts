@@ -3,6 +3,7 @@ import * as path from "node:path"
 import * as crypto from "node:crypto"
 import { HTMLElement, parse as parseHTML } from "node-html-parser"
 import Mustache from "mustache"
+import * as markdown from "markdown-wasm"
 
 import { scanDirectory } from "./fs"
 import { watcher } from "./watcher"
@@ -37,11 +38,6 @@ type File = (MemoryFile | ExternalFile) & {
 
 type Files = Map<FileID, File>
 
-type Page = {
-  title: string
-  assets: File[]
-}
-
 function isMemoryFile(value: unknown): value is MemoryFile {
   return value != null && typeof value == "object" && "buffer" in value
 }
@@ -67,10 +63,6 @@ function getPartials(options: StaticBuildOptions): Partials {
 }
 
 function shouldSkipFilePath(relativeFilePath: string, ignoredPaths: string[] = []): boolean {
-  if (relativeFilePath.startsWith("_")) {
-    return true
-  }
-
   for (const ignoredPath of ignoredPaths || []) {
     const normalizedIgnoredPath = path.normalize(ignoredPath)
 
@@ -80,6 +72,32 @@ function shouldSkipFilePath(relativeFilePath: string, ignoredPaths: string[] = [
   }
 
   return false
+}
+
+type CollectionInfo = {
+  name: string
+  path: string
+  date: Date
+}
+
+function getCollectionInfoFromPath(relativeFilePath: string): CollectionInfo | undefined {
+  if (!relativeFilePath.startsWith("_")) return
+
+  const parts = relativeFilePath.split("/")
+  if (parts.length != 3) return
+
+  const [rawName, rawDateAndSlug, filename] = parts
+
+  const name = rawName.replace(/^_/, "")
+  // Get the date part of the string, so that "2022-04-15-my-file" becomes "2022-04-15".
+  const date = rawDateAndSlug.match(/^(19[0-9]{2}|2[0-9]{3})-(0[1-9]|1[012])-([123]0|[012][1-9]|31)/g)?.[0] || ""
+  const slug = rawDateAndSlug.replace(`${date}-`, "")
+
+  return {
+    name,
+    path: path.join(name, slug, filename),
+    date: new Date(date),
+  }
 }
 
 function collectAssets(inputDirectory: string, outputDirectory: string, document: HTMLElement, files: Files) {
@@ -95,12 +113,10 @@ function collectAssets(inputDirectory: string, outputDirectory: string, document
 
     styleContents += fs.readFileSync(inputPath, "utf8")
 
-    element.parentNode.removeChild(element)
+    element.remove()
   }
 
-  const headElement = document.querySelector("head")
-
-  if (styleContents && headElement) {
+  if (styleContents) {
     const fileID = hash(styleContents)
     const relativePath = path.join("/", "assets", "css", fileID + ".css")
     const outputPath = path.join(outputDirectory, relativePath)
@@ -110,7 +126,7 @@ function collectAssets(inputDirectory: string, outputDirectory: string, document
       outputPath,
     })
 
-    headElement.append(`<link rel="stylesheet" href="${relativePath}"/ >`)
+    document.append(`<link rel="stylesheet" href="${relativePath}"/ >`)
   }
 
   for (const element of document.querySelectorAll("img, video")) {
@@ -141,24 +157,25 @@ function collectAssets(inputDirectory: string, outputDirectory: string, document
 }
 
 function collectInlineCode(outputDirectory: string, document: HTMLElement, files: Files) {
-  const headElement = document.querySelector("head")
-  if (!headElement) return
-
   let scriptContent = ""
   let styleContent = ""
 
   for (const element of document.querySelectorAll("style, script:not([src])")) {
+    if (element.hasAttribute("sb:buildtime")) continue
+
     const textContent = element.textContent
 
-    element.parentNode.removeChild(element)
+    element.remove()
 
     switch (element.tagName) {
       case "STYLE": {
         styleContent += textContent + "\n"
+        break
       }
 
       case "SCRIPT": {
         scriptContent += textContent + "\n"
+        break
       }
     }
   }
@@ -172,7 +189,7 @@ function collectInlineCode(outputDirectory: string, document: HTMLElement, files
       outputPath: path.join(outputDirectory, relativePath),
     })
 
-    headElement.append(`<link rel="stylesheet" href="${relativePath}"/ >`)
+    document.append(`<link rel="stylesheet" href="${relativePath}"/ >`)
   }
 
   if (scriptContent) {
@@ -184,7 +201,7 @@ function collectInlineCode(outputDirectory: string, document: HTMLElement, files
       outputPath: path.join(outputDirectory, relativePath),
     })
 
-    headElement.append(`<script src="${relativePath}" async defer></script>`)
+    document.append(`<script src="${relativePath}" async defer></script>`)
   }
 }
 
@@ -196,7 +213,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
   options.ignoredPaths = ["./v/", "./_layouts", "./_partials", "./assets"]
 
   const build = async (changedFilePaths: string[] = []) => {
-    console.time("build")
+    console.time("Built")
 
     if (changedFilePaths.length == 0) {
       for await (const file of scanDirectory(options.inputDirectory)) {
@@ -221,11 +238,13 @@ export default async function staticbuild(options: StaticBuildOptions) {
       const relativeFilePath = absoluteFilePath.replace(path.join(options.inputDirectory, "/"), "")
       if (shouldSkipFilePath(relativeFilePath, options.ignoredPaths)) continue
 
+      const collectionInfo = getCollectionInfoFromPath(relativeFilePath)
+
       switch (path.extname(absoluteFilePath)) {
-        case ".html": {
+        case ".md": {
           // Render template tags.
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
-          const html = Mustache.render(fileContents, {}, getPartials(options))
+          const html = markdown.parse(fileContents)
 
           // Parse HTML.
           const document = parseHTML(html)
@@ -239,14 +258,77 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
           files.set(fileID, {
             buffer: Buffer.from(document.toString()),
-            outputPath: path.join(options.outputDirectory, relativeFilePath),
+            outputPath: path.join(
+              options.outputDirectory,
+              collectionInfo ? collectionInfo.path.replace(".md", ".html") : relativeFilePath.replace(".md", ".html"),
+            ),
           })
+          break
+        }
+
+        case ".html": {
+          // Render template tags.
+          const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
+
+          const preTemplateDocument = parseHTML(fileContents)
+          const context = {
+            data: {},
+          }
+
+          for (const element of preTemplateDocument.querySelectorAll("[sb\\:buildtime]")) {
+            if (element.getAttribute("type") != "application/json") continue
+
+            try {
+              const data = JSON.parse(element.textContent.trim())
+              context.data = { ...context.data, ...data }
+            } catch (err: unknown) {
+              console.log("Error parsing buildtime data\n> " + err)
+            }
+
+            element.remove()
+          }
+
+          const html = Mustache.render(preTemplateDocument.toString(), context, getPartials(options))
+
+          // Parse HTML.
+          const document = parseHTML(html)
+
+          collectAssets(options.inputDirectory, options.outputDirectory, document, files)
+          collectInlineCode(options.outputDirectory, document, files)
+
+          for (const element of document.querySelectorAll("[sb\\:buildtime]")) {
+            if (element.getAttribute("type") && element.getAttribute("type") != "text/javascript") continue
+
+            try {
+              eval(element.textContent)
+            } catch(err: unknown) {
+              console.log("Error executing buildtime script\n> " + err)
+            }
+
+            element.remove()
+          }
+
+          if (options.watch) {
+            document.append(reloader.getScript())
+          }
+
+          files.set(fileID, {
+            buffer: Buffer.from(document.toString()),
+            outputPath: path.join(options.outputDirectory, collectionInfo ? collectionInfo.path : relativeFilePath),
+          })
+          break
         }
 
         default:
           continue
       }
     }
+
+    console.log(" ")
+
+    console.timeEnd("Built")
+
+    console.time("Write")
 
     for (const [_, file] of files) {
       const buffer: Buffer<ArrayBuffer> = isExternalFile(file)
@@ -257,14 +339,16 @@ export default async function staticbuild(options: StaticBuildOptions) {
       fs.writeFileSync(file.outputPath, buffer)
     }
 
-    console.timeEnd("build")
+    console.timeEnd("Write")
+
+    console.log(`Done (${new Date()})`)
   }
 
   await build()
 
   if (options.watch) {
     console.log("---")
-    console.log("👀 watching for changes...")
+    console.log("👀 Watching for changes...")
 
     reloader.start()
 
