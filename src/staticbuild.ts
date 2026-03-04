@@ -83,6 +83,8 @@ function shouldSkipFilePath(relativeFilePath: string, ignoredPaths: string[] = [
 }
 
 function collectAssets(inputDirectory: string, outputDirectory: string, document: HTMLElement, files: Files) {
+  let styleContents = ""
+
   for (const element of document.querySelectorAll(`link[rel="stylesheet"]`)) {
     const href = element.getAttribute("href")
     if (!href) continue
@@ -91,19 +93,28 @@ function collectAssets(inputDirectory: string, outputDirectory: string, document
     const inputPath = path.normalize(path.join(inputDirectory, href))
     if (!fs.existsSync(inputPath)) continue
 
-    const fileID = hash(inputPath)
-    const outputPath = path.join(outputDirectory, href)
-
-    files.set(fileID, {
-      inputPath: inputPath,
-      outputPath,
-    })
+    styleContents += fs.readFileSync(inputPath, "utf8")
 
     element.parentNode.removeChild(element)
   }
 
+  const headElement = document.querySelector("head")
+
+  if (styleContents && headElement) {
+    const fileID = hash(styleContents)
+    const relativePath = path.join("/", "assets", "css", fileID + ".css")
+    const outputPath = path.join(outputDirectory, relativePath)
+
+    files.set(fileID, {
+      buffer: Buffer.from(styleContents),
+      outputPath,
+    })
+
+    headElement.append(`<link rel="stylesheet" href="${relativePath}"/ >`)
+  }
+
   for (const element of document.querySelectorAll("img, video")) {
-    const src = element.getAttribute("src")
+    const src = element.getAttribute("src") || element.getAttribute("sb:src")
     if (!src) continue
     if (src.startsWith("http")) continue
 
@@ -115,15 +126,10 @@ function collectAssets(inputDirectory: string, outputDirectory: string, document
 
     switch (path.extname(src)) {
       case ".svg": {
-        if (!element.hasAttribute("@inline")) break
+        if (!element.hasAttribute("sb:inline")) break
 
         const svg = fs.readFileSync(inputPath, "utf8")
         element.replaceWith(svg)
-        continue
-      }
-
-      default: {
-        continue
       }
     }
 
@@ -135,6 +141,9 @@ function collectAssets(inputDirectory: string, outputDirectory: string, document
 }
 
 function collectInlineCode(outputDirectory: string, document: HTMLElement, files: Files) {
+  const headElement = document.querySelector("head")
+  if (!headElement) return
+
   let scriptContent = ""
   let styleContent = ""
 
@@ -144,44 +153,38 @@ function collectInlineCode(outputDirectory: string, document: HTMLElement, files
     element.parentNode.removeChild(element)
 
     switch (element.tagName) {
-      case "STYLE":
+      case "STYLE": {
         styleContent += textContent + "\n"
-        break
+      }
 
-      case "SCRIPT":
+      case "SCRIPT": {
         scriptContent += textContent + "\n"
-        break
-
-      default:
-        continue
+      }
     }
+  }
 
-    const headElement = document.querySelector("head")
-    if (!headElement) return
+  if (styleContent) {
+    const fileID = hash(styleContent)
+    const relativePath = path.join("/", "assets", "css", fileID + ".css")
 
-    if (styleContent) {
-      const fileID = hash(styleContent)
-      const relativePath = path.join("assets", "css", fileID + ".css")
+    files.set(fileID, {
+      buffer: Buffer.from(styleContent),
+      outputPath: path.join(outputDirectory, relativePath),
+    })
 
-      files.set(fileID, {
-        buffer: Buffer.from(styleContent),
-        outputPath: path.join(outputDirectory, relativePath),
-      })
+    headElement.append(`<link rel="stylesheet" href="${relativePath}"/ >`)
+  }
 
-      headElement.append(`<link ref="stylesheet" href="${relativePath}"/ >`)
-    }
+  if (scriptContent) {
+    const fileID = hash(scriptContent)
+    const relativePath = path.join("/", "assets", "js", fileID + ".js")
 
-    if (scriptContent) {
-      const fileID = hash(scriptContent)
-      const relativePath = path.join("assets", "js", fileID + ".js")
+    files.set(fileID, {
+      buffer: Buffer.from(scriptContent),
+      outputPath: path.join(outputDirectory, relativePath),
+    })
 
-      files.set(fileID, {
-        buffer: Buffer.from(scriptContent),
-        outputPath: path.join(outputDirectory, relativePath),
-      })
-
-      headElement.append(`<script src="${relativePath}" async defer></script>`)
-    }
+    headElement.append(`<script src="${relativePath}" async defer></script>`)
   }
 }
 
@@ -244,7 +247,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
       }
     }
 
-    console.log(files)
+    // console.log(files)
 
     for (const [_, file] of files) {
       const buffer: Buffer<ArrayBuffer> = isExternalFile(file)
