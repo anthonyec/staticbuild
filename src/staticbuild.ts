@@ -22,27 +22,31 @@ interface StaticBuildOptions {
   ignoredPaths?: string[]
 }
 
+type FilePath = string
 type FileID = string
 
-type MemoryFile = {
+type Dependencies = Set<FilePath>
+type InputDependencies = Map<FilePath, Dependencies>
+
+type MemoryOutputFile = {
   buffer: Buffer<ArrayBuffer>
 }
 
-type ExternalFile = {
-  inputPath: string
+type ExternalOutputFile = {
+  inputPath: FilePath
 }
 
-type File = (MemoryFile | ExternalFile) & {
-  outputPath: string
+type OutputFile = (MemoryOutputFile | ExternalOutputFile) & {
+  outputPath: FilePath
 }
 
-type Files = Map<FileID, File>
+type OutputFiles = Map<FileID, OutputFile>
 
-function isMemoryFile(value: unknown): value is MemoryFile {
+function isMemoryFile(value: unknown): value is MemoryOutputFile {
   return value != null && typeof value == "object" && "buffer" in value
 }
 
-function isExternalFile(value: unknown): value is ExternalFile {
+function isExternalFile(value: unknown): value is ExternalOutputFile {
   return value != null && typeof value == "object" && "inputPath" in value
 }
 
@@ -100,7 +104,7 @@ function getCollectionInfoFromPath(relativeFilePath: string): CollectionInfo | u
   }
 }
 
-function collectAssets(inputDirectory: string, outputDirectory: string, document: HTMLElement, files: Files) {
+function collectAssets(inputDirectory: string, outputDirectory: string, document: HTMLElement, files: OutputFiles, dependencies: Dependencies) {
   let styleContents = ""
 
   for (const element of document.querySelectorAll(`link[rel="stylesheet"]`)) {
@@ -126,37 +130,36 @@ function collectAssets(inputDirectory: string, outputDirectory: string, document
       outputPath,
     })
 
-    document.append(`<link rel="stylesheet" href="${relativePath}"/ >`)
+    document.append(`<link rel="stylesheet" href="${relativePath}" />`)
   }
 
-  for (const element of document.querySelectorAll("img, video")) {
-    const src = element.getAttribute("src") || element.getAttribute("sb:src")
+  for (const element of document.querySelectorAll("img, video, a")) {
+    const src = element.getAttribute("src") || element.getAttribute("href") || element.getAttribute("sb:src")
     if (!src) continue
     if (src.startsWith("http")) continue
 
     const inputPath = path.normalize(path.join(inputDirectory, src))
     if (!fs.existsSync(inputPath)) continue
+    if (fs.statSync(inputPath).isDirectory()) continue
 
     const fileID = hash(inputPath)
     const outputPath = path.join(outputDirectory, src)
 
-    switch (path.extname(src)) {
-      case ".svg": {
-        if (!element.hasAttribute("sb:inline")) break
-
-        const svg = fs.readFileSync(inputPath, "utf8")
-        element.replaceWith(svg)
-      }
+    if (path.extname(src) && element.hasAttribute("sb:inline")) {
+      const svg = fs.readFileSync(inputPath, "utf8")
+      element.replaceWith(svg)
     }
 
     files.set(fileID, {
-      inputPath: inputPath,
+      inputPath,
       outputPath,
     })
+
+    dependencies.add(path.join(inputDirectory, src))
   }
 }
 
-function collectInlineCode(outputDirectory: string, document: HTMLElement, files: Files) {
+function collectInlineCode(outputDirectory: string, document: HTMLElement, files: OutputFiles) {
   let scriptContent = ""
   let styleContent = ""
 
@@ -206,7 +209,8 @@ function collectInlineCode(outputDirectory: string, document: HTMLElement, files
 }
 
 export default async function staticbuild(options: StaticBuildOptions) {
-  const files: Files = new Map()
+  const inputDependencies: InputDependencies = new Map()
+  const outputFiles: OutputFiles = new Map()
   const reloader = createReloader()
 
   // @NOCHECKIN
@@ -221,20 +225,31 @@ export default async function staticbuild(options: StaticBuildOptions) {
       }
     }
 
-    for (const absoluteFilePath of changedFilePaths) {
+    const filePathProcessQueue: string[] = [...changedFilePaths]
+
+    while (filePathProcessQueue.length != 0) {
+      const absoluteFilePath = filePathProcessQueue.pop()
+      if (!absoluteFilePath) break
+
       const fileID = hash(absoluteFilePath)
 
       if (!fs.existsSync(absoluteFilePath)) {
-        const existingFile = files.get(fileID)
+        const existingFile = outputFiles.get(fileID)
         if (!existingFile) continue
 
         fs.unlinkSync(existingFile.outputPath)
-        files.delete(fileID)
+        outputFiles.delete(fileID)
         continue
       }
 
+      for (const [dependencyRoot, dependencies] of inputDependencies) {
+        if (dependencies.has(absoluteFilePath)) {
+            filePathProcessQueue.push(dependencyRoot)
+        }
+      }
+      
       if (fs.statSync(absoluteFilePath).isDirectory()) continue
-
+      
       const relativeFilePath = absoluteFilePath.replace(path.join(options.inputDirectory, "/"), "")
       if (shouldSkipFilePath(relativeFilePath, options.ignoredPaths)) continue
 
@@ -248,15 +263,16 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
           // Parse HTML.
           const document = parseHTML(html)
+          const dependencies: Set<string> = new Set()
 
-          collectAssets(options.inputDirectory, options.outputDirectory, document, files)
-          collectInlineCode(options.outputDirectory, document, files)
+          collectAssets(options.inputDirectory, options.outputDirectory, document, outputFiles, dependencies)
+          collectInlineCode(options.outputDirectory, document, outputFiles)
 
           if (options.watch) {
             document.append(reloader.getScript())
           }
 
-          files.set(fileID, {
+          outputFiles.set(fileID, {
             buffer: Buffer.from(document.toString()),
             outputPath: path.join(
               options.outputDirectory,
@@ -292,9 +308,10 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
           // Parse HTML.
           const document = parseHTML(html)
+          const dependencies: Set<string> = new Set()
 
-          collectAssets(options.inputDirectory, options.outputDirectory, document, files)
-          collectInlineCode(options.outputDirectory, document, files)
+          collectAssets(options.inputDirectory, options.outputDirectory, document, outputFiles, dependencies)
+          collectInlineCode(options.outputDirectory, document, outputFiles)
 
           for (const element of document.querySelectorAll("[sb\\:buildtime]")) {
             if (element.getAttribute("type") && element.getAttribute("type") != "text/javascript") continue
@@ -312,10 +329,12 @@ export default async function staticbuild(options: StaticBuildOptions) {
             document.append(reloader.getScript())
           }
 
-          files.set(fileID, {
+          outputFiles.set(fileID, {
             buffer: Buffer.from(document.toString()),
             outputPath: path.join(options.outputDirectory, collectionInfo ? collectionInfo.path : relativeFilePath),
           })
+
+          inputDependencies.set(absoluteFilePath, dependencies)
           break
         }
 
@@ -330,7 +349,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
     console.time("Write")
 
-    for (const [_, file] of files) {
+    for (const [_, file] of outputFiles) {
       const buffer: Buffer<ArrayBuffer> = isExternalFile(file)
         ? Buffer.from(fs.readFileSync(file.inputPath))
         : file.buffer
