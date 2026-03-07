@@ -48,16 +48,17 @@ npx http-server -c-1 ./dist -p 8081
 ## Documentation
 
 ### Special HTML Attributes
+
 #### `sb:src`
 
-When building the site, `staticbuild` will if files are referenced in any `src` or `href` attribute and ensure they are downloaded. 
+When building the site, `staticbuild` will if files are referenced in any `src` or `href` attribute and ensure they are downloaded.
 
 However, sometimes you want to refer to files without loading them in the browser. For example, preloading videos.
 
 Use the attribute `sb:src="<PATH_TO_ASSET>"` to make `staticbuild` aware of the file and to copy it over when building the site.
 
 ```html
-<video sb:src="my_cool_video.webm">
+<video sb:src="my_cool_video.webm"></video>
 ```
 
 #### `sb:inline`
@@ -67,7 +68,7 @@ SVG images can be inlined into the document. This keeps the HTML template clean 
 ```html
 <!-- This template: -->
 <div>
-  <img src="circle.svg" sb:inline>
+  <img src="circle.svg" sb:inline />
 </div>
 
 <!-- Will render: -->
@@ -81,7 +82,7 @@ SVG images can be inlined into the document. This keeps the HTML template clean 
 
 #### `sb:buildtime`
 
-Arbitrary JavaScript can be run at build time! You heard that correct. 
+Arbitrary JavaScript can be run at build time! You heard that correct.
 
 Since the Mustache template language is logic-less, this attribute provides the full power of a scripting language in a template.
 
@@ -124,7 +125,7 @@ The data can then be accessed using Mustache in the same HTML page under the `da
 <!-- This template: -->
 <ul>
   {{#data.items}}
-    <li>List item number: {{.}}</li>
+  <li>List item number: {{.}}</li>
   {{/data.items}}
 </ul>
 

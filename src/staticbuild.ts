@@ -5,6 +5,7 @@ import { HTMLElement, parse as parseHTML } from "node-html-parser"
 import Mustache from "mustache"
 import * as markdown from "markdown-wasm"
 
+import { assert } from "./assert"
 import { scanDirectory } from "./fs"
 import { watcher } from "./watcher"
 import { createReloader } from "./reloader"
@@ -104,7 +105,13 @@ function getCollectionInfoFromPath(relativeFilePath: string): CollectionInfo | u
   }
 }
 
-function collectAssets(inputDirectory: string, outputDirectory: string, document: HTMLElement, files: OutputFiles, dependencies: Dependencies) {
+function collectAssets(
+  inputDirectory: string,
+  outputDirectory: string,
+  document: HTMLElement,
+  files: OutputFiles,
+  dependencies: Dependencies,
+) {
   let styleContents = ""
 
   for (const element of document.querySelectorAll(`link[rel="stylesheet"]`)) {
@@ -244,12 +251,12 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
       for (const [dependencyRoot, dependencies] of inputDependencies) {
         if (dependencies.has(absoluteFilePath)) {
-            filePathProcessQueue.push(dependencyRoot)
+          filePathProcessQueue.push(dependencyRoot)
         }
       }
-      
+
       if (fs.statSync(absoluteFilePath).isDirectory()) continue
-      
+
       const relativeFilePath = absoluteFilePath.replace(path.join(options.inputDirectory, "/"), "")
       if (shouldSkipFilePath(relativeFilePath, options.ignoredPaths)) continue
 
@@ -257,28 +264,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
       switch (path.extname(absoluteFilePath)) {
         case ".md": {
-          // Render template tags.
-          const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
-          const html = markdown.parse(fileContents)
-
-          // Parse HTML.
-          const document = parseHTML(html)
-          const dependencies: Set<string> = new Set()
-
-          collectAssets(options.inputDirectory, options.outputDirectory, document, outputFiles, dependencies)
-          collectInlineCode(options.outputDirectory, document, outputFiles)
-
-          if (options.watch) {
-            document.append(reloader.getScript())
-          }
-
-          outputFiles.set(fileID, {
-            buffer: Buffer.from(document.toString()),
-            outputPath: path.join(
-              options.outputDirectory,
-              collectionInfo ? collectionInfo.path.replace(".md", ".html") : relativeFilePath.replace(".md", ".html"),
-            ),
-          })
           break
         }
 
@@ -291,6 +276,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
             data: {},
           }
 
+          // Parse script tags containing data and add it to the `context`.
           for (const element of preTemplateDocument.querySelectorAll("[sb\\:buildtime]")) {
             if (element.getAttribute("type") != "application/json") continue
 
@@ -304,31 +290,49 @@ export default async function staticbuild(options: StaticBuildOptions) {
             element.remove()
           }
 
+          // Parse and render template.
           const html = Mustache.render(preTemplateDocument.toString(), context, getPartials(options))
 
-          // Parse HTML.
-          const document = parseHTML(html)
+          // Parse HTML and modify it.
+          let document = parseHTML(html)
           const dependencies: Set<string> = new Set()
-
           collectAssets(options.inputDirectory, options.outputDirectory, document, outputFiles, dependencies)
           collectInlineCode(options.outputDirectory, document, outputFiles)
 
+          // Execute buildtime script tags.
           for (const element of document.querySelectorAll("[sb\\:buildtime]")) {
             if (element.getAttribute("type") && element.getAttribute("type") != "text/javascript") continue
 
             try {
               eval(element.textContent)
-            } catch(err: unknown) {
+            } catch (err: unknown) {
               console.log("Error executing buildtime script\n> " + err)
             }
 
             element.remove()
           }
 
+          // Reparse the document and
+          let headElement = document.querySelector("head")
+
+          if (headElement) {
+            // Reparse the modified document and tidy up all the script and
+            // style tags to the <head> element to avoid unstyled flash.
+            document = parseHTML(document.toString())
+            headElement = document.querySelector("head")
+            assert(headElement)
+
+            for (const element of document.querySelectorAll(`link[rel="stylesheet"], script[src]`)) {
+              headElement.appendChild(element.clone())
+              element.remove()
+            }
+          }
+
           if (options.watch) {
             document.append(reloader.getScript())
           }
 
+          // Turn modified HTML back into a file.
           outputFiles.set(fileID, {
             buffer: Buffer.from(document.toString()),
             outputPath: path.join(options.outputDirectory, collectionInfo ? collectionInfo.path : relativeFilePath),
