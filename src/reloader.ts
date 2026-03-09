@@ -1,7 +1,7 @@
 import * as http from "http"
 import { EventEmitter } from "events"
 
-interface Reloader {
+export interface Reloader {
   getScript: () => string
   reload: () => void
   start: () => void

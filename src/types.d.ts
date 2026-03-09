@@ -2,7 +2,3 @@
 interface Error {
   code?: string
 }
-
-interface Args {
-  watch?: boolean
-}

@@ -5,6 +5,11 @@ import { stdout } from "process"
 
 import { staticbuild } from "."
 
+interface Args {
+  watch?: boolean
+  dryRun?: boolean
+}
+
 const ERROR_CODE = {
   SUCCESS: 0,
   CALLED_WITH_ILLEGAL_PARAMETERS: 1,
@@ -13,15 +18,17 @@ const ERROR_CODE = {
 
 const DEFAULT_ARGS: Args = {
   watch: false,
+  dryRun: false,
 }
 
 function logUsage() {
-  stdout.write(`Usage: staticbuild <inputDirectory> <outputDirectory> [--watch]\n`)
+  stdout.write(`Usage: staticbuild <inputDirectory> <outputDirectory> [--watch, --dry-run]\n`)
 
   stdout.write(`\nArguments:\n`)
-  stdout.write(`<inputDirectory>    Location of directory containing content\n`)
-  stdout.write(`<outputDirectory>   Location of directory for build output\n`)
-  stdout.write(`--watch, -w         Watch source directory for changes\n`)
+  stdout.write(`<inputDirectory>    Path to directory containing content.\n`)
+  stdout.write(`<outputDirectory>   Path to directory for built site assets.\n`)
+  stdout.write(`--watch, -w         Watch the input directory and rebuild if there are changes.\n`)
+  stdout.write(`--dry-run           Prevent writing files to disk, instead logging the file list out.\n`)
 }
 
 async function main() {
@@ -43,20 +50,34 @@ async function main() {
         mem["watch"] = true
       }
 
+      if (arg === "--dry-run") {
+        mem["dryRun"] = true
+      }
+
       return mem
     },
     { ...DEFAULT_ARGS },
   )
 
   // Check that the first argument is a path and not a command.
-  if (!inputDirectory || inputDirectory.slice(0, 1) === "-") {
-    stdout.write(`Error: Invalid input directory.\n`)
+  if (!inputDirectory) {
+    stdout.write(`Error: Missing input directory.\n`)
+    return ERROR_CODE.CALLED_WITH_ILLEGAL_PARAMETERS
+  }
+
+  if (inputDirectory.slice(0, 1) === "-") {
+    stdout.write(`Error: Invalid input directory.\n> ${inputDirectory}`)
     return ERROR_CODE.CALLED_WITH_ILLEGAL_PARAMETERS
   }
 
   // Check that the second argument is a path and not a command.
-  if (!outputDirectory || outputDirectory.slice(0, 1) === "-") {
-    stdout.write(`Error: Invalid output directory.\n`)
+  if (!outputDirectory) {
+    stdout.write(`Error: Missing output directory.\n`)
+    return ERROR_CODE.CALLED_WITH_ILLEGAL_PARAMETERS
+  }
+
+  if (outputDirectory.slice(0, 1) === "-") {
+    stdout.write(`Error: Invalid output directory.\n> ${inputDirectory}`)
     return ERROR_CODE.CALLED_WITH_ILLEGAL_PARAMETERS
   }
 

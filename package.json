@@ -2,7 +2,7 @@
   "name": "@anthonyec/staticbuild",
   "version": "0.0.14",
   "description": "Static site generator that isn't for you",
-  "main": "dist/index.js",
+  "main": "./index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/anthonyec/staticbuild.git"

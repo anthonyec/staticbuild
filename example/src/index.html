@@ -1,0 +1,11 @@
+<h1>Welcome to my Website!</h1>
+
+<h2>Posts</h2>
+
+<ul>
+  {{#collection.posts}}
+    <li>
+      <a href="{{path}}">{{title}}</a>
+    </li>
+  {{/collection.posts}}
+</ul>
