@@ -100,10 +100,7 @@ function shouldSkipFilePath(relativeFilePath: string, ignoredPaths: string[] = [
 function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry | undefined {
   if (!relativeFilePath.startsWith("_")) return
 
-  const parts = relativeFilePath.split("/")
-  if (parts.length != 3) return
-
-  const [rawName, rawDateAndSlug] = parts
+  const [rawName, rawDateAndSlug = ""] = relativeFilePath.split("/")
 
   const collectionName = rawName.replace(/^_/, "")
   // Get the date part of the string, so that "2022-04-15-my-file" becomes "2022-04-15".
@@ -154,29 +151,40 @@ function collectAssets(
     document.append(`<link rel="stylesheet" href="${relativePath}" />`)
   }
 
-  for (const element of document.querySelectorAll("img, video, a")) {
+  for (const element of document.querySelectorAll("img, video, a[download]")) {
     const src = element.getAttribute("src") || element.getAttribute("href") || element.getAttribute("sb:src")
     if (!src) continue
     if (src.startsWith("http")) continue
 
-    const inputPath = path.normalize(path.join(inputDirectory, src))
-    if (!fs.existsSync(inputPath)) continue
-    if (fs.statSync(inputPath).isDirectory()) continue
+    const inputPath = path.resolve(currentDirectory, src)
 
-    const fileID = hash(inputPath)
-    const outputPath = path.join(outputDirectory, src)
+    if (!fs.existsSync(inputPath)) {
+      console.log(`Could not find asset: ${inputPath}`)
+      continue
+    }
+
+    if (fs.statSync(inputPath).isDirectory()) {
+      console.log(`Skipping asset, it's a directory: ${inputPath}`)
+      continue
+    }
+
+    const relativeInputDirectory = path.relative(inputDirectory, currentDirectory)
+    const collectEntry = getCollectionEntryFromPath(relativeInputDirectory)
+    const outputPath = path.join(outputDirectory, collectEntry?.path ?? "", src)
 
     if (path.extname(src) && element.hasAttribute("sb:inline")) {
       const svg = fs.readFileSync(inputPath, "utf8")
       element.replaceWith(svg)
     }
 
+    const fileID = hash(inputPath)
+
     files.set(fileID, {
       inputPath,
       outputPath,
     })
 
-    dependencies.add(path.join(inputDirectory, src))
+    dependencies.add(inputPath)
   }
 }
 
@@ -471,13 +479,22 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
     console.time("Write")
 
+    if (options.dryRun) {
+      console.log("Files that *would* be written:")
+    }
+
     for (const [_, file] of outputFiles) {
       const buffer: Buffer<ArrayBuffer> = isExternalFile(file)
         ? Buffer.from(fs.readFileSync(file.inputPath))
         : file.buffer
 
       if (options.dryRun) {
-        console.log("write: ", file.outputPath)
+        if (isExternalFile(file)) {
+          console.log("- " + file.inputPath + " -> " + file.outputPath)
+        } else {
+          console.log("- " + "(buffer) -> " + file.outputPath)
+        }
+        console.log(" ")
       } else {
         fs.mkdirSync(path.dirname(file.outputPath), { recursive: true })
         fs.writeFileSync(file.outputPath, buffer)
