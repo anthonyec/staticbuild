@@ -43,6 +43,18 @@ type OutputFile = (MemoryOutputFile | ExternalOutputFile) & {
 
 type OutputFiles = Map<FileID, OutputFile>
 
+type CollectionName = string
+
+type CollectionEntry = {
+  collection: CollectionName
+  path: string
+  date: Date
+}
+
+// Plain JS object is used instead of Map so that it can be passed to a template
+// without having to convert the data structure.
+type CollectionEntries = { [name: CollectionName]: CollectionEntry[] }
+
 function isMemoryFile(value: unknown): value is MemoryOutputFile {
   return value != null && typeof value == "object" && "buffer" in value
 }
@@ -79,13 +91,7 @@ function shouldSkipFilePath(relativeFilePath: string, ignoredPaths: string[] = [
   return false
 }
 
-type CollectionInfo = {
-  name: string
-  path: string
-  date: Date
-}
-
-function getCollectionInfoFromPath(relativeFilePath: string): CollectionInfo | undefined {
+function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry | undefined {
   if (!relativeFilePath.startsWith("_")) return
 
   const parts = relativeFilePath.split("/")
@@ -93,14 +99,14 @@ function getCollectionInfoFromPath(relativeFilePath: string): CollectionInfo | u
 
   const [rawName, rawDateAndSlug, filename] = parts
 
-  const name = rawName.replace(/^_/, "")
+  const collectionName = rawName.replace(/^_/, "")
   // Get the date part of the string, so that "2022-04-15-my-file" becomes "2022-04-15".
   const date = rawDateAndSlug.match(/^(19[0-9]{2}|2[0-9]{3})-(0[1-9]|1[012])-([123]0|[012][1-9]|31)/g)?.[0] || ""
   const slug = rawDateAndSlug.replace(`${date}-`, "")
 
   return {
-    name,
-    path: path.join(name, slug, filename),
+    collection: collectionName,
+    path: path.join(collectionName, slug, filename),
     date: new Date(date),
   }
 }
@@ -215,9 +221,16 @@ function collectInlineCode(outputDirectory: string, document: HTMLElement, files
   }
 }
 
+function absoluteToRelativePath(inputDirectory: string, absolutePath: string): string {
+  return absolutePath.replace(path.join(inputDirectory, "/"), "")
+}
+
 export default async function staticbuild(options: StaticBuildOptions) {
   const inputDependencies: InputDependencies = new Map()
   const outputFiles: OutputFiles = new Map()
+
+  const collectionNameToEntries: CollectionEntries = {}
+
   const reloader = createReloader()
 
   // @NOCHECKIN
@@ -232,10 +245,35 @@ export default async function staticbuild(options: StaticBuildOptions) {
       }
     }
 
-    const filePathProcessQueue: string[] = [...changedFilePaths]
+    // Sorted by underscore first so that collections get parsed before other
+    // standalone pages, so that full collections are iterable by the time a
+    // standalone page gets processed.
+    //
+    // This does mean that collection pages won't be able to display complete
+    // lists of any collection. For example, a blog post can't show all blog
+    // posts as a footer. But a homepage can show all the blog posts.
+    //
+    // This tradeoff is fine for now since my sites don't need this feature. If
+    // they did, then some sort of multi-pass over the files would be needed.
+    changedFilePaths.sort((a, b) => {
+      const relativePathA = absoluteToRelativePath(options.inputDirectory, a)
+      const relativePathB = absoluteToRelativePath(options.inputDirectory, b)
 
-    while (filePathProcessQueue.length != 0) {
-      const absoluteFilePath = filePathProcessQueue.pop()
+      if (relativePathA.startsWith("_") && !relativePathB.startsWith("_")) {
+        return 1
+      }
+
+      if (!relativePathA.startsWith("_") && relativePathB.startsWith("_")) {
+        return -1
+      }
+
+      return 0
+    })
+
+    const filePathProcessStack: string[] = [...changedFilePaths]
+
+    while (filePathProcessStack.length != 0) {
+      const absoluteFilePath = filePathProcessStack.pop()
       if (!absoluteFilePath) break
 
       const fileID = hash(absoluteFilePath)
@@ -251,19 +289,25 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
       for (const [dependencyRoot, dependencies] of inputDependencies) {
         if (dependencies.has(absoluteFilePath)) {
-          filePathProcessQueue.push(dependencyRoot)
+          filePathProcessStack.push(dependencyRoot)
         }
       }
 
       if (fs.statSync(absoluteFilePath).isDirectory()) continue
 
-      const relativeFilePath = absoluteFilePath.replace(path.join(options.inputDirectory, "/"), "")
+      const relativeFilePath = absoluteToRelativePath(options.inputDirectory, absoluteFilePath)
       if (shouldSkipFilePath(relativeFilePath, options.ignoredPaths)) continue
 
-      const collectionInfo = getCollectionInfoFromPath(relativeFilePath)
+      const collectionEntry = getCollectionEntryFromPath(relativeFilePath)
 
       switch (path.extname(absoluteFilePath)) {
         case ".md": {
+          if (!collectionEntry) continue
+
+          const existingEntries = collectionNameToEntries[collectionEntry.collection] || []
+          existingEntries.push(collectionEntry)
+
+          collectionNameToEntries[collectionEntry.collection] = existingEntries
           break
         }
 
@@ -274,6 +318,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
           const preTemplateDocument = parseHTML(fileContents)
           const context = {
             data: {},
+            collection: collectionNameToEntries,
           }
 
           // Parse script tags containing data and add it to the `context`.
@@ -332,10 +377,14 @@ export default async function staticbuild(options: StaticBuildOptions) {
             document.append(reloader.getScript())
           }
 
+          if (!collectionEntry) {
+            console.log(collectionNameToEntries)
+          }
+
           // Turn modified HTML back into a file.
           outputFiles.set(fileID, {
             buffer: Buffer.from(document.toString()),
-            outputPath: path.join(options.outputDirectory, collectionInfo ? collectionInfo.path : relativeFilePath),
+            outputPath: path.join(options.outputDirectory, collectionEntry ? collectionEntry.path : relativeFilePath),
           })
 
           inputDependencies.set(absoluteFilePath, dependencies)
