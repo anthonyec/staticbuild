@@ -49,6 +49,7 @@ type CollectionEntry = {
   collection: CollectionName
   path: string
   date: Date
+  title: string
 }
 
 // Plain JS object is used instead of Map so that it can be passed to a template
@@ -108,6 +109,7 @@ function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry |
     collection: collectionName,
     path: path.join(collectionName, slug, filename),
     date: new Date(date),
+    title: slug,
   }
 }
 
@@ -308,6 +310,18 @@ export default async function staticbuild(options: StaticBuildOptions) {
           existingEntries.push(collectionEntry)
 
           collectionNameToEntries[collectionEntry.collection] = existingEntries
+
+          const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
+          const html = markdown.parse(fileContents)
+
+          const document = parseHTML(html)
+
+          const h1 = document.querySelector("h1")
+
+          if (h1) {
+            collectionEntry.title = h1.textContent
+          }
+
           break
         }
 
@@ -317,7 +331,9 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
           const preTemplateDocument = parseHTML(fileContents)
           const context = {
-            data: {},
+            page: {
+              title: "Untitled",
+            },
             collection: collectionNameToEntries,
           }
 
@@ -326,8 +342,11 @@ export default async function staticbuild(options: StaticBuildOptions) {
             if (element.getAttribute("type") != "application/json") continue
 
             try {
-              const data = JSON.parse(element.textContent.trim())
-              context.data = { ...context.data, ...data }
+              const pageData = JSON.parse(element.textContent.trim())
+              context.page = {
+                ...context.page,
+                ...pageData,
+              }
             } catch (err: unknown) {
               console.log("Error parsing buildtime data\n> " + err)
             }
@@ -375,10 +394,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
           if (options.watch) {
             document.append(reloader.getScript())
-          }
-
-          if (!collectionEntry) {
-            console.log(collectionNameToEntries)
           }
 
           // Turn modified HTML back into a file.
