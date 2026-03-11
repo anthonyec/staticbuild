@@ -130,6 +130,17 @@ function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry |
   }
 }
 
+function getAssetAttribute(element: HTMLElement): { name: string, value: string } | undefined {
+  // @TODO: Only supports one asset attribute per element.
+  for (const name of ["src", "sb:src", "href"]) {
+    const value = element.getAttribute(name)
+
+    if (value) {
+      return { name, value }
+    }
+  }
+}
+
 function collectAssets(
   inputDirectory: string,
   outputDirectory: string,
@@ -168,12 +179,15 @@ function collectAssets(
   //   document.append(`<link rel="stylesheet" href="${relativePath}" />`)
   // }
 
-  for (const element of document.querySelectorAll("img, video")) {
-    const inputPath = element.getAttribute("src") || element.getAttribute("sb:src")
+  for (const element of document.querySelectorAll("img, video, a")) {
+    const attribute = getAssetAttribute(element)
+    if (!attribute) continue
+
+    const inputPath = attribute.value
     if (!inputPath) continue
 
     if (!inputPath.startsWith(inputDirectory)) {
-      console.error(`Path for "src" was not converted to absolute path: ${inputPath}`)
+      console.error(`Path is not absolute path: ${inputPath}`)
       continue
     }
 
@@ -203,7 +217,7 @@ function collectAssets(
       const [, , ...rest] = relativeInputDirectory.split("/")
 
       const relativeOutputPath = path.join(collectionEntry.path, ...rest)
-      element.setAttribute("src", path.join("/", relativeOutputPath))
+      element.setAttribute(attribute.name, path.join("/", relativeOutputPath))
 
       files.set(fileID, {
         inputPath,
@@ -212,7 +226,7 @@ function collectAssets(
       continue
     }
 
-    element.setAttribute("src", path.join("/", relativeInputDirectory))
+    element.setAttribute(attribute.name, path.join("/", relativeInputDirectory))
 
     files.set(fileID, {
       inputPath,
