@@ -130,7 +130,7 @@ function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry |
   }
 }
 
-function getAssetAttribute(element: HTMLElement): { name: string, value: string } | undefined {
+function getAssetAttribute(element: HTMLElement): { name: string; value: string } | undefined {
   // @TODO: Only supports one asset attribute per element.
   for (const name of ["src", "sb:src", "href"]) {
     const value = element.getAttribute(name)
@@ -148,38 +148,7 @@ function collectAssets(
   files: OutputFiles,
   dependencies: Dependencies,
 ) {
-  // let styleContents = ""
-
-  // for (const element of document.querySelectorAll(`link[rel="stylesheet"]`)) {
-  //   const href = element.getAttribute("href")
-  //   if (!href) continue
-  //   if (href.startsWith("http")) continue
-
-  //   const inputPath = href.startsWith("/") ? path.join(currentDirectory, href) : path.resolve(currentDirectory, href)
-
-  //   if (!fs.existsSync(inputPath)) {
-  //     console.error(`Could not find asset: ${inputPath}`)
-  //     continue
-  //   }
-
-  //   styleContents += fs.readFileSync(inputPath, "utf8")
-  //   element.remove()
-  // }
-
-  // if (styleContents) {
-  //   const fileID = hash(styleContents)
-  //   const relativePath = path.join("/", "assets", "css", fileID + ".css")
-  //   const outputPath = path.join(outputDirectory, relativePath)
-
-  //   files.set(fileID, {
-  //     buffer: Buffer.from(styleContents),
-  //     outputPath,
-  //   })
-
-  //   document.append(`<link rel="stylesheet" href="${relativePath}" />`)
-  // }
-
-  for (const element of document.querySelectorAll("img, video, a")) {
+  for (const element of document.querySelectorAll(`img, video, a, link[href], script[src]`)) {
     const attribute = getAssetAttribute(element)
     if (!attribute) continue
 
