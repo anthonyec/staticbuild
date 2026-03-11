@@ -2,7 +2,7 @@ import * as fs from "node:fs"
 import * as path from "node:path"
 import * as crypto from "node:crypto"
 import { HTMLElement, parse as parseHTML } from "node-html-parser"
-import Mustache from "mustache"
+import Mustache, { parse } from "mustache"
 import * as markdown from "markdown-wasm"
 
 import { assert } from "./assert"
@@ -11,6 +11,34 @@ import { watcher } from "./watcher"
 import { createReloader, Reloader } from "./reloader"
 
 const ASSETS_SELECTOR = "img, video, a, link[href], script[src]"
+
+const TEMPLATE_FUNCTIONS: RenderContext["fn"] = {
+  dateToISO8601: () => (text, subRender) => {
+    function formatDateWithTemplate(template: string, date: Date) {
+      var specs = 'YYYY:MM:DD:HH:mm:ss'.split(':');
+      date = new Date(date || Date.now() - new Date().getTimezoneOffset() * 6e4);
+
+      return date.toISOString().split(/[-:.TZ]/).reduce(function(template, item, index) {
+        return template.split(specs[index]).join(item);
+      }, template);
+    }
+
+    const renderedDate = subRender(text);
+    const date = new Date(renderedDate);
+    return formatDateWithTemplate('YYYY-MM-DD', date);
+  },
+
+  dateToUTC: () => (text, render) => {
+    const renderedDate = render(text);
+    const date = new Date(renderedDate);
+    return date.toUTCString();
+  },
+
+  removeH1: () => (text, render) => {
+    const renderedText = render(text);
+    return renderedText.replace(/<h1>.*(?:<a.*>.*<\/a>).*<\/h1>/g, '');
+  }
+}
 
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */
@@ -54,9 +82,27 @@ type CollectionEntry = {
   title: string
 }
 
-// Plain JS object is used instead of Map so that it can be passed to a template
-// without having to convert the data structure.
+// Plain JS object is used instead of a `Map` so that it can be passed to a
+// template without having to serialize it.
 type CollectionEntries = { [name: CollectionName]: CollectionEntry[] }
+
+type MustacheFunction = () => (
+  text: string,
+  subRender: (template: string) => string
+) => string;
+
+type RenderContext = {
+  site: {
+    url: string
+  },
+  page: {
+    title: string
+    content: string
+    date?: Date
+  }
+  collection: CollectionEntries
+  fn: { [name: string]: MustacheFunction }
+}
 
 function isMemoryFile(value: unknown): value is MemoryOutputFile {
   return value != null && typeof value == "object" && "buffer" in value
@@ -269,16 +315,33 @@ function renderHTMLPage(
   outputFiles: OutputFiles,
   partials: Templates,
   layouts: Templates,
-): string {
-  const context = {
+): { title: string, html: string } {
+  const context: RenderContext = {
+    site: {
+      url: "" // @TODO: Implement.
+    },
     page: {
-      title: "Untitled",
+      title: "",
       content: "",
     },
     collection: collectionNameToEntries,
+    fn: TEMPLATE_FUNCTIONS
   }
 
   const preTemplateDocument = parseHTML(fileContents)
+
+  const titleElement = preTemplateDocument.querySelector("title")
+
+  if (titleElement) {
+    context.page.title = titleElement.textContent
+  }
+
+  const headingElement = preTemplateDocument.querySelector("h1")
+
+  if (headingElement) {
+    context.page.title = headingElement.textContent
+  }
+
 
   // Parse script tags containing data and add it to the `context`.
   for (const element of preTemplateDocument.querySelectorAll("[sb\\:buildtime]")) {
@@ -297,11 +360,16 @@ function renderHTMLPage(
     element.remove()
   }
 
+  // Setup page template if one exists.
   context.page.content = preTemplateDocument.toString()
 
   const currentDirectory = path.dirname(absoluteFilePath)
   const relativeInputDirectory = path.relative(options.inputDirectory, currentDirectory)
   const collectionEntry = getCollectionEntryFromPath(relativeInputDirectory)
+
+  if (collectionEntry) {
+    context.page.date = collectionEntry?.date
+  }
 
   const layout = collectionEntry && layouts && layouts.get(collectionEntry.collection)
   const template = layout ?? preTemplateDocument.toString()
@@ -309,13 +377,8 @@ function renderHTMLPage(
   // Parse and render template.
   const html = Mustache.render(template, context, Object.fromEntries(partials))
 
-  // Parse HTML and modify it.
+  // Parse the HTML ready for modification.
   let document = parseHTML(html)
-  resolveAllPathsToAbsolute(currentDirectory, document)
-
-  const dependencies: Set<string> = new Set()
-  collectAssets(options.inputDirectory, options.outputDirectory, document, outputFiles, dependencies)
-  collectInlineCode(options.outputDirectory, document, outputFiles)
 
   // Execute buildtime script tags.
   for (const element of document.querySelectorAll("[sb\\:buildtime]")) {
@@ -330,7 +393,17 @@ function renderHTMLPage(
     element.remove()
   }
 
-  // Reparse the document and
+  // Before assets are collected or modified, change all the source paths from
+  // relative to absolute. This makes it easier to deal with for both developer
+  // and processing.
+  resolveAllPathsToAbsolute(currentDirectory, document)
+
+  // Modify the page assets.
+  const dependencies: Set<string> = new Set()
+  collectAssets(options.inputDirectory, options.outputDirectory, document, outputFiles, dependencies)
+  collectInlineCode(options.outputDirectory, document, outputFiles)
+
+  // Tidy the document.
   let headElement = document.querySelector("head")
 
   if (headElement) {
@@ -351,7 +424,11 @@ function renderHTMLPage(
   }
 
   inputDependencies.set(absoluteFilePath, dependencies)
-  return document.toString()
+
+  return {
+    title: context.page.title,
+    html: document.toString(),
+  }
 }
 
 export default async function staticbuild(options: StaticBuildOptions) {
@@ -437,14 +514,9 @@ export default async function staticbuild(options: StaticBuildOptions) {
         case ".md": {
           if (!collectionEntry) continue
 
-          const existingEntries = collectionNameToEntries[collectionEntry.collection] || []
-          existingEntries.push(collectionEntry)
-
-          collectionNameToEntries[collectionEntry.collection] = existingEntries
-
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
           const html = markdown.parse(fileContents)
-          const renderedPage = renderHTMLPage(
+          const { title, html: renderedPage, } = renderHTMLPage(
             reloader,
             options,
             absoluteFilePath,
@@ -456,24 +528,26 @@ export default async function staticbuild(options: StaticBuildOptions) {
             layouts,
           )
 
+          const existingEntries = collectionNameToEntries[collectionEntry.collection] || []
+          if (existingEntries.find((entry) => entry.path === collectionEntry.path)) continue
+
+          collectionEntry.title = title
+
+          existingEntries.push(collectionEntry)
+          collectionNameToEntries[collectionEntry.collection] = existingEntries
+
           // Turn modified HTML back into a file.
           outputFiles.set(fileID, {
             buffer: Buffer.from(renderedPage),
             outputPath: path.join(options.outputDirectory, collectionEntry.path, "index.html"),
           })
 
-          // const h1 = document.querySelector("h1")
-
-          // if (h1) {
-          //   collectionEntry.title = h1.textContent
-          // }
-
           break
         }
 
         case ".html": {
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
-          const renderedPage = renderHTMLPage(
+          const { html: renderedPage } = renderHTMLPage(
             reloader,
             options,
             absoluteFilePath,
