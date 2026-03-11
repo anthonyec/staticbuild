@@ -10,6 +10,8 @@ import { scanDirectory } from "./fs"
 import { watcher } from "./watcher"
 import { createReloader, Reloader } from "./reloader"
 
+const ASSETS_SELECTOR = "img, video, a, link[href], script[src]"
+
 interface StaticBuildOptions {
   /** Specify an input folder containing website source files */
   inputDirectory: string
@@ -69,12 +71,16 @@ function hash(value: string): string {
 }
 
 function resolveAllPathsToAbsolute(currentDirectory: string, document: HTMLElement) {
-  for (const element of document.querySelectorAll("img, video")) {
-    const src = element.getAttribute("src") || element.getAttribute("sb:src")
-    if (!src) continue
-    if (src.startsWith("http")) continue
+  for (const element of document.querySelectorAll(ASSETS_SELECTOR)) {
+    const attribute = getAssetAttribute(element)
+    if (!attribute) continue
+    if (attribute.value.startsWith("http")) continue
 
-    element.setAttribute("src", path.resolve(currentDirectory, src))
+    const inputPath = path.resolve(currentDirectory, attribute.value)
+    if (!fs.existsSync(inputPath)) continue
+    if (fs.statSync(inputPath).isDirectory()) continue
+
+    element.setAttribute(attribute.name, path.join("/", inputPath))
   }
 }
 
@@ -148,17 +154,13 @@ function collectAssets(
   files: OutputFiles,
   dependencies: Dependencies,
 ) {
-  for (const element of document.querySelectorAll(`img, video, a, link[href], script[src]`)) {
+  for (const element of document.querySelectorAll(ASSETS_SELECTOR)) {
     const attribute = getAssetAttribute(element)
     if (!attribute) continue
 
     const inputPath = attribute.value
     if (!inputPath) continue
-
-    if (!inputPath.startsWith(inputDirectory)) {
-      console.error(`Path is not absolute path: ${inputPath}`)
-      continue
-    }
+    if (!inputPath.startsWith(inputDirectory)) continue
 
     if (!fs.existsSync(inputPath)) {
       console.error(`Could not find asset: ${inputPath}`)
