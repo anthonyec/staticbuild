@@ -68,18 +68,33 @@ function hash(value: string): string {
   return crypto.createHash("md5").update(value).digest("hex")
 }
 
-type Templates = { [name: string]: string }
+function resolveAllPathsToAbsolute(currentDirectory: string, document: HTMLElement): void {
+  for (const element of document.querySelectorAll("img, video")) {
+    const src = element.getAttribute("src") || element.getAttribute("sb:src")
+    if (!src) continue
+    if (src.startsWith("http")) continue
+
+    element.setAttribute("src", path.resolve(currentDirectory, src))
+  }
+}
+
+type Templates = Map<string, string>
 
 function getTemplates(inputDirectory: string, directoryName: string): Templates {
   assert(directoryName.startsWith("_"))
 
-  const partials: Templates = {}
+  const partials: Templates = new Map()
 
   const templatesDirectory = path.join(inputDirectory, directoryName)
   if (!fs.existsSync(templatesDirectory)) return partials
 
   for (const file of scanDirectory(templatesDirectory)) {
-    partials[file.name] = fs.readFileSync(file.path, "utf8")
+    const fileContents = fs.readFileSync(file.path, "utf8")
+
+    const document = parseHTML(fileContents)
+    resolveAllPathsToAbsolute(templatesDirectory, document)
+
+    partials.set(file.name, document.toString())
   }
 
   return partials
@@ -116,9 +131,9 @@ function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry |
 }
 
 function collectAssets(
-  currentDirectory: string,
   inputDirectory: string,
   outputDirectory: string,
+  currentDirectory: string,
   document: HTMLElement,
   files: OutputFiles,
   dependencies: Dependencies,
@@ -130,11 +145,14 @@ function collectAssets(
     if (!href) continue
     if (href.startsWith("http")) continue
 
-    const inputPath = path.normalize(path.join(inputDirectory, href))
-    if (!fs.existsSync(inputPath)) continue
+    const inputPath = href.startsWith("/") ? path.join(currentDirectory, href) : path.resolve(currentDirectory, href)
+
+    if (!fs.existsSync(inputPath)) {
+      console.error(`Could not find asset: ${inputPath}`)
+      continue
+    }
 
     styleContents += fs.readFileSync(inputPath, "utf8")
-
     element.remove()
   }
 
@@ -156,21 +174,21 @@ function collectAssets(
     if (!src) continue
     if (src.startsWith("http")) continue
 
-    const inputPath = path.resolve(currentDirectory, src)
+    const inputPath = src.startsWith("/") ? path.join(currentDirectory, src) : path.resolve(currentDirectory, src)
 
     if (!fs.existsSync(inputPath)) {
-      console.log(`Could not find asset: ${inputPath}`)
+      console.error(`Could not find asset: ${inputPath}`)
       continue
     }
 
     if (fs.statSync(inputPath).isDirectory()) {
-      console.log(`Skipping asset, it's a directory: ${inputPath}`)
+      console.error(`Skipping asset, it's a directory: ${inputPath}`)
       continue
     }
 
     const relativeInputDirectory = path.relative(inputDirectory, currentDirectory)
-    const collectEntry = getCollectionEntryFromPath(relativeInputDirectory)
-    const outputPath = path.join(outputDirectory, collectEntry?.path ?? "", src)
+    const collectionEntry = getCollectionEntryFromPath(relativeInputDirectory)
+    const outputPath = path.join(outputDirectory, collectionEntry?.path ?? "", src)
 
     if (path.extname(src) && element.hasAttribute("sb:inline")) {
       const svg = fs.readFileSync(inputPath, "utf8")
@@ -250,10 +268,12 @@ function renderHTMLPage(
   inputDependencies: InputDependencies,
   outputFiles: OutputFiles,
   partials: Templates,
+  layouts: Templates,
 ): string {
   const context = {
     page: {
       title: "Untitled",
+      content: "",
     },
     collection: collectionNameToEntries,
   }
@@ -271,26 +291,30 @@ function renderHTMLPage(
         ...pageData,
       }
     } catch (err: unknown) {
-      console.log("Error parsing buildtime data\n> " + err)
+      console.error("Error parsing buildtime data\n> " + err)
     }
 
     element.remove()
   }
 
+  context.page.content = preTemplateDocument.toString()
+
+  const currentDirectory = path.dirname(absoluteFilePath)
+  const relativeInputDirectory = path.relative(options.inputDirectory, currentDirectory)
+  const collectionEntry = getCollectionEntryFromPath(relativeInputDirectory)
+
+  const layout = collectionEntry && layouts && layouts.get(collectionEntry.collection)
+  const template = layout ?? preTemplateDocument.toString()
+
   // Parse and render template.
-  const html = Mustache.render(preTemplateDocument.toString(), context, partials)
+  const html = Mustache.render(template, context, Object.fromEntries(partials))
 
   // Parse HTML and modify it.
   let document = parseHTML(html)
+  resolveAllPathsToAbsolute(currentDirectory, document)
+  
   const dependencies: Set<string> = new Set()
-  collectAssets(
-    path.dirname(absoluteFilePath),
-    options.inputDirectory,
-    options.outputDirectory,
-    document,
-    outputFiles,
-    dependencies,
-  )
+  collectAssets(options.inputDirectory, options.outputDirectory, currentDirectory, document, outputFiles, dependencies)
   collectInlineCode(options.outputDirectory, document, outputFiles)
 
   // Execute buildtime script tags.
@@ -300,7 +324,7 @@ function renderHTMLPage(
     try {
       eval(element.textContent)
     } catch (err: unknown) {
-      console.log("Error executing buildtime script\n> " + err)
+      console.error("Error executing buildtime script\n> " + err)
     }
 
     element.remove()
@@ -429,6 +453,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
             inputDependencies,
             outputFiles,
             partials,
+            layouts,
           )
 
           // Turn modified HTML back into a file.
