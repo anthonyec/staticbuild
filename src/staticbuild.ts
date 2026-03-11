@@ -68,7 +68,7 @@ function hash(value: string): string {
   return crypto.createHash("md5").update(value).digest("hex")
 }
 
-function resolveAllPathsToAbsolute(currentDirectory: string, document: HTMLElement): void {
+function resolveAllPathsToAbsolute(currentDirectory: string, document: HTMLElement) {
   for (const element of document.querySelectorAll("img, video")) {
     const src = element.getAttribute("src") || element.getAttribute("sb:src")
     if (!src) continue
@@ -133,48 +133,49 @@ function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry |
 function collectAssets(
   inputDirectory: string,
   outputDirectory: string,
-  currentDirectory: string,
   document: HTMLElement,
   files: OutputFiles,
   dependencies: Dependencies,
 ) {
-  let styleContents = ""
+  // let styleContents = ""
 
-  for (const element of document.querySelectorAll(`link[rel="stylesheet"]`)) {
-    const href = element.getAttribute("href")
-    if (!href) continue
-    if (href.startsWith("http")) continue
+  // for (const element of document.querySelectorAll(`link[rel="stylesheet"]`)) {
+  //   const href = element.getAttribute("href")
+  //   if (!href) continue
+  //   if (href.startsWith("http")) continue
 
-    const inputPath = href.startsWith("/") ? path.join(currentDirectory, href) : path.resolve(currentDirectory, href)
+  //   const inputPath = href.startsWith("/") ? path.join(currentDirectory, href) : path.resolve(currentDirectory, href)
 
-    if (!fs.existsSync(inputPath)) {
-      console.error(`Could not find asset: ${inputPath}`)
+  //   if (!fs.existsSync(inputPath)) {
+  //     console.error(`Could not find asset: ${inputPath}`)
+  //     continue
+  //   }
+
+  //   styleContents += fs.readFileSync(inputPath, "utf8")
+  //   element.remove()
+  // }
+
+  // if (styleContents) {
+  //   const fileID = hash(styleContents)
+  //   const relativePath = path.join("/", "assets", "css", fileID + ".css")
+  //   const outputPath = path.join(outputDirectory, relativePath)
+
+  //   files.set(fileID, {
+  //     buffer: Buffer.from(styleContents),
+  //     outputPath,
+  //   })
+
+  //   document.append(`<link rel="stylesheet" href="${relativePath}" />`)
+  // }
+
+  for (const element of document.querySelectorAll("img, video")) {
+    const inputPath = element.getAttribute("src") || element.getAttribute("sb:src")
+    if (!inputPath) continue
+
+    if (!inputPath.startsWith(inputDirectory)) {
+      console.error(`Path for "src" was not converted to absolute path: ${inputPath}`)
       continue
     }
-
-    styleContents += fs.readFileSync(inputPath, "utf8")
-    element.remove()
-  }
-
-  if (styleContents) {
-    const fileID = hash(styleContents)
-    const relativePath = path.join("/", "assets", "css", fileID + ".css")
-    const outputPath = path.join(outputDirectory, relativePath)
-
-    files.set(fileID, {
-      buffer: Buffer.from(styleContents),
-      outputPath,
-    })
-
-    document.append(`<link rel="stylesheet" href="${relativePath}" />`)
-  }
-
-  for (const element of document.querySelectorAll("img, video, a[download]")) {
-    const src = element.getAttribute("src") || element.getAttribute("href") || element.getAttribute("sb:src")
-    if (!src) continue
-    if (src.startsWith("http")) continue
-
-    const inputPath = src.startsWith("/") ? path.join(currentDirectory, src) : path.resolve(currentDirectory, src)
 
     if (!fs.existsSync(inputPath)) {
       console.error(`Could not find asset: ${inputPath}`)
@@ -186,23 +187,37 @@ function collectAssets(
       continue
     }
 
-    const relativeInputDirectory = path.relative(inputDirectory, currentDirectory)
-    const collectionEntry = getCollectionEntryFromPath(relativeInputDirectory)
-    const outputPath = path.join(outputDirectory, collectionEntry?.path ?? "", src)
-
-    if (path.extname(src) && element.hasAttribute("sb:inline")) {
+    if (path.extname(inputPath) && element.hasAttribute("sb:inline")) {
       const svg = fs.readFileSync(inputPath, "utf8")
       element.replaceWith(svg)
     }
 
     const fileID = hash(inputPath)
 
+    dependencies.add(inputPath)
+
+    const relativeInputDirectory = path.relative(inputDirectory, inputPath)
+    const collectionEntry = getCollectionEntryFromPath(relativeInputDirectory)
+
+    if (collectionEntry) {
+      const [, , ...rest] = relativeInputDirectory.split("/")
+
+      const relativeOutputPath = path.join(collectionEntry.path, ...rest)
+      element.setAttribute("src", path.join("/", relativeOutputPath))
+
+      files.set(fileID, {
+        inputPath,
+        outputPath: path.join(outputDirectory, relativeOutputPath),
+      })
+      continue
+    }
+
+    element.setAttribute("src", path.join("/", relativeInputDirectory))
+
     files.set(fileID, {
       inputPath,
-      outputPath,
+      outputPath: path.join(outputDirectory, relativeInputDirectory),
     })
-
-    dependencies.add(inputPath)
   }
 }
 
@@ -312,9 +327,9 @@ function renderHTMLPage(
   // Parse HTML and modify it.
   let document = parseHTML(html)
   resolveAllPathsToAbsolute(currentDirectory, document)
-  
+
   const dependencies: Set<string> = new Set()
-  collectAssets(options.inputDirectory, options.outputDirectory, currentDirectory, document, outputFiles, dependencies)
+  collectAssets(options.inputDirectory, options.outputDirectory, document, outputFiles, dependencies)
   collectInlineCode(options.outputDirectory, document, outputFiles)
 
   // Execute buildtime script tags.
@@ -482,6 +497,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
             inputDependencies,
             outputFiles,
             partials,
+            layouts,
           )
 
           // Turn modified HTML back into a file.
@@ -505,7 +521,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.time("Write")
 
     if (options.dryRun) {
-      console.log("Files that *would* be written:")
+      console.log(" ")
     }
 
     for (const [_, file] of outputFiles) {
@@ -514,11 +530,15 @@ export default async function staticbuild(options: StaticBuildOptions) {
         : file.buffer
 
       if (options.dryRun) {
+        console.log("[fake_file_write]")
         if (isExternalFile(file)) {
-          console.log("- " + file.inputPath + " -> " + file.outputPath)
+          console.log(" in: " + file.inputPath)
         } else {
-          console.log("- " + "(buffer) -> " + file.outputPath)
+          console.log(" in: " + `(buffer ${file.buffer.length} bytes)`)
         }
+
+        console.log(" out: " + file.outputPath)
+
         console.log(" ")
       } else {
         fs.mkdirSync(path.dirname(file.outputPath), { recursive: true })
