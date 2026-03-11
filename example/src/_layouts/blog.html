@@ -1,0 +1,19 @@
+{{>header}}
+
+{{>nav}}
+
+<hr>
+
+{{{page.content}}}
+
+<hr>
+
+{{>footer}}
+
+<script sb:buildtime>
+  const images = document.querySelectorAll("img")
+
+  for (const image of images) {
+    image.setAttribute("data-absolute-src", image.getAttribute("src"))
+  }
+</script>

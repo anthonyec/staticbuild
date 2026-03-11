@@ -15,29 +15,32 @@ const ASSETS_SELECTOR = "img, video, a, link[href], script[src]"
 const TEMPLATE_FUNCTIONS: RenderContext["fn"] = {
   dateToISO8601: () => (text, subRender) => {
     function formatDateWithTemplate(template: string, date: Date) {
-      var specs = 'YYYY:MM:DD:HH:mm:ss'.split(':');
-      date = new Date(date || Date.now() - new Date().getTimezoneOffset() * 6e4);
+      var specs = "YYYY:MM:DD:HH:mm:ss".split(":")
+      date = new Date(date || Date.now() - new Date().getTimezoneOffset() * 6e4)
 
-      return date.toISOString().split(/[-:.TZ]/).reduce(function(template, item, index) {
-        return template.split(specs[index]).join(item);
-      }, template);
+      return date
+        .toISOString()
+        .split(/[-:.TZ]/)
+        .reduce(function (template, item, index) {
+          return template.split(specs[index]).join(item)
+        }, template)
     }
 
-    const renderedDate = subRender(text);
-    const date = new Date(renderedDate);
-    return formatDateWithTemplate('YYYY-MM-DD', date);
+    const renderedDate = subRender(text)
+    const date = new Date(renderedDate)
+    return formatDateWithTemplate("YYYY-MM-DD", date)
   },
 
   dateToUTC: () => (text, render) => {
-    const renderedDate = render(text);
-    const date = new Date(renderedDate);
-    return date.toUTCString();
+    const renderedDate = render(text)
+    const date = new Date(renderedDate)
+    return date.toUTCString()
   },
 
   removeH1: () => (text, render) => {
-    const renderedText = render(text);
-    return renderedText.replace(/<h1>.*(?:<a.*>.*<\/a>).*<\/h1>/g, '');
-  }
+    const renderedText = render(text)
+    return renderedText.replace(/<h1>.*(?:<a.*>.*<\/a>).*<\/h1>/g, "")
+  },
 }
 
 interface StaticBuildOptions {
@@ -86,15 +89,12 @@ type CollectionEntry = {
 // template without having to serialize it.
 type CollectionEntries = { [name: CollectionName]: CollectionEntry[] }
 
-type MustacheFunction = () => (
-  text: string,
-  subRender: (template: string) => string
-) => string;
+type MustacheFunction = () => (text: string, subRender: (template: string) => string) => string
 
 type RenderContext = {
   site: {
     url: string
-  },
+  }
   page: {
     title: string
     content: string
@@ -315,17 +315,17 @@ function renderHTMLPage(
   outputFiles: OutputFiles,
   partials: Templates,
   layouts: Templates,
-): { title: string, html: string } {
+): { title: string; html: string } {
   const context: RenderContext = {
     site: {
-      url: "" // @TODO: Implement.
+      url: "", // @TODO: Implement.
     },
     page: {
       title: "",
       content: "",
     },
     collection: collectionNameToEntries,
-    fn: TEMPLATE_FUNCTIONS
+    fn: TEMPLATE_FUNCTIONS,
   }
 
   const preTemplateDocument = parseHTML(fileContents)
@@ -341,7 +341,6 @@ function renderHTMLPage(
   if (headingElement) {
     context.page.title = headingElement.textContent
   }
-
 
   // Parse script tags containing data and add it to the `context`.
   for (const element of preTemplateDocument.querySelectorAll("[sb\\:buildtime]")) {
@@ -380,6 +379,11 @@ function renderHTMLPage(
   // Parse the HTML ready for modification.
   let document = parseHTML(html)
 
+  // Before assets are collected or modified, change all the source paths from
+  // relative to absolute. This makes it easier to deal with for both developer
+  // and processing.
+  resolveAllPathsToAbsolute(currentDirectory, document)
+
   // Execute buildtime script tags.
   for (const element of document.querySelectorAll("[sb\\:buildtime]")) {
     if (element.getAttribute("type") && element.getAttribute("type") != "text/javascript") continue
@@ -392,11 +396,6 @@ function renderHTMLPage(
 
     element.remove()
   }
-
-  // Before assets are collected or modified, change all the source paths from
-  // relative to absolute. This makes it easier to deal with for both developer
-  // and processing.
-  resolveAllPathsToAbsolute(currentDirectory, document)
 
   // Modify the page assets.
   const dependencies: Set<string> = new Set()
@@ -516,7 +515,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
           const html = markdown.parse(fileContents)
-          const { title, html: renderedPage, } = renderHTMLPage(
+          const { title, html: renderedPage } = renderHTMLPage(
             reloader,
             options,
             absoluteFilePath,

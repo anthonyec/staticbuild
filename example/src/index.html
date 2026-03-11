@@ -1,13 +1,27 @@
+{{>header}}
+
 {{>nav}}
+
+<style>
+  * {
+    transform-origin: center;
+  }
+
+  h1 {
+    color: red
+  }
+</style>
+
+<script>
+  const h1 = document.querySelector("h1")
+  h1.addEventListener("click", () => h1.setAttribute("style", "transform: rotate(3deg)"))
+</script>
+
+<script>
+  const img = document.querySelector("img")
+  img.addEventListener("click", () => img.setAttribute("style", "transform: rotate(-3deg)"))
+</script>
 
 <h1>Welcome to my Website!</h1>
 
-<h2>Posts</h2>
-
-<ul>
-  {{#collection.posts}}
-    <li>
-      <a href="{{path}}">{{title}}</a>
-    </li>
-  {{/collection.posts}}
-</ul>
+{{>footer}}
