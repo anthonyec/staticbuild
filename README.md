@@ -16,18 +16,17 @@ I'm currently using this in the following projects:
 
 ## Features
 
-- Small and flat dependency tree, [markdown-wasm](https://github.com/rsms/markdown-wasm/) and [mustache.js](https://github.com/janl/mustache.js/)
+- No configuration
+- Good and nice handling of assets
 - Automatic page reloading when files change
-- Configuration is just JavaScript™️
 - Markdown files [display nicely](https://github.com/anthonyec/website/blob/main/src/_posts/2022-03-30-one-year-of-salad-room/index.md) in GitHub, with images and no ugly front matter table
+- [Buildtime](#sbbuildtime) scripting
 
 ## Why
 
 I was using `jekyll` for generating [my website](https://anthonycossins.com/). But after switching to a new computer, I found it very difficult to setup Ruby, Bundler and all the other junk that was required to get my site running.
 
 So out of frustration I built my [own static site generator](https://github.com/anthonyec/static_build) within a couple of hours. It was messy but it worked. And was actually faster than `jekyll` because I don't need it to be as flexible.
-
-This version of `staticbuild` is an attempt to clean things up while still maintaining it's minimalism-ish.
 
 ## Usage
 
@@ -115,19 +114,15 @@ DOM API access is limited because execution happens within the Node.js process. 
 </script>
 ```
 
-Data can be provided to the current HTML template using the attribute `type="application/json"` along with `sb:buildtime`.
+Data can be provided to the current HTML template using the `sb:buildtime` attribute on a `<data>` element.
 
-Provide data as a valid JSON object.
+Provide data needs to a valid JSON object.
 
 ```html
-<script sb:buildtime type="application/json">
-  {
-    "items": ["1", "2", "3"]
-  }
-</script>
+<data sb:buildtime> { "items": ["1", "2", "3"] } </data>
 ```
 
-The data can then be accessed using Mustache in the same HTML page under the `page.data` field.
+Once defined, the data can then be accessed using Mustache in the same HTML page under the `page.data` field.
 
 ```html
 <!-- This template: -->

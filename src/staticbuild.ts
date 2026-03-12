@@ -348,9 +348,7 @@ function renderHTMLPage(
   }
 
   // Parse script tags containing page data.
-  for (const element of preTemplateDocument.querySelectorAll("[sb\\:buildtime]")) {
-    if (element.getAttribute("type") != "application/json") continue
-
+  for (const element of preTemplateDocument.querySelectorAll("data[sb\\:buildtime]")) {
     try {
       context.page.data = JSON.parse(element.textContent.trim())
     } catch (err: unknown) {
@@ -386,7 +384,7 @@ function renderHTMLPage(
   resolveAllPathsToAbsolute(currentDirectory, document)
 
   // Execute buildtime script tags.
-  for (const element of document.querySelectorAll("[sb\\:buildtime]")) {
+  for (const element of document.querySelectorAll("script[sb\\:buildtime]")) {
     if (element.getAttribute("type") && element.getAttribute("type") != "text/javascript") continue
 
     try {

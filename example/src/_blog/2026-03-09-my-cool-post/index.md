@@ -1,8 +1,8 @@
-<script sb:buildtime type="application/json">
+<data sb:buildtime>
   {
     "category": "birds"
   }
-</script>
+</data>
 
 # My Cool Post
 
