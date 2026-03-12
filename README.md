@@ -80,6 +80,14 @@ SVG images can be inlined into the document. This keeps the HTML template clean 
 </div>
 ```
 
+#### `sb:selector`
+
+[@TODO: Explain]
+
+#### `sb:ignore`
+
+[@TODO: Explain]
+
 #### `sb:buildtime`
 
 Arbitrary JavaScript can be run at build time! You heard that correct.
@@ -119,14 +127,14 @@ Provide data as a valid JSON object.
 </script>
 ```
 
-The data can then be accessed using Mustache in the same HTML page under the `data` field.
+The data can then be accessed using Mustache in the same HTML page under the `page.data` field.
 
 ```html
 <!-- This template: -->
 <ul>
-  {{#data.items}}
+  {{#page.data.items}}
   <li>List item number: {{.}}</li>
-  {{/data.items}}
+  {{/page.data.items}}
 </ul>
 
 <!-- Will render: -->

@@ -398,6 +398,18 @@ function renderHTMLPage(
     element.remove()
   }
 
+  for (const element of document.querySelectorAll("[sb\\:selector]")) {
+    const selector = element.getAttribute("sb:selector")
+    if (!selector) continue
+    if ((selector.includes(":hover"), selector.includes(":focus"))) continue
+
+    if (!document.querySelector(selector)) {
+      element.remove()
+    } else {
+      element.removeAttribute("sb:selector")
+    }
+  }
+
   // Modify the page assets.
   const dependencies: Set<string> = new Set()
   collectAssets(options.inputDirectory, options.outputDirectory, document, outputFiles, dependencies)
