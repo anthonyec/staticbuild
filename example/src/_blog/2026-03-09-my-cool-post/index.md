@@ -1,3 +1,9 @@
+<script sb:buildtime type="application/json">
+  {
+    "category": "birds"
+  }
+</script>
+
 # My Cool Post
 
 Check out these chickens!

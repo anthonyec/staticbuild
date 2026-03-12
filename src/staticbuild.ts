@@ -12,7 +12,7 @@ import { createReloader, Reloader } from "./reloader"
 
 const ASSETS_SELECTOR = "img, video, a, link[href], script[src]"
 
-const TEMPLATE_FUNCTIONS: RenderContext["fn"] = {
+const TEMPLATE_FUNCTIONS: Context["fn"] = {
   dateToISO8601: () => (text, subRender) => {
     function formatDateWithTemplate(template: string, date: Date) {
       var specs = "YYYY:MM:DD:HH:mm:ss".split(":")
@@ -76,13 +76,16 @@ type OutputFile = (MemoryOutputFile | ExternalOutputFile) & {
 
 type OutputFiles = Map<FileID, OutputFile>
 
+type PageData = { [key: string]: string }
+
 type CollectionName = string
 
 type CollectionEntry = {
-  collection: CollectionName
+  title: string
   path: string
   date: Date
-  title: string
+  collection: CollectionName
+  data: PageData
 }
 
 // Plain JS object is used instead of a `Map` so that it can be passed to a
@@ -91,14 +94,15 @@ type CollectionEntries = { [name: CollectionName]: CollectionEntry[] }
 
 type MustacheFunction = () => (text: string, subRender: (template: string) => string) => string
 
-type RenderContext = {
+type Context = {
   site: {
     url: string
   }
   page: {
     title: string
     content: string
-    date?: Date
+    date: Date | null
+    data: PageData
   }
   collection: CollectionEntries
   fn: { [name: string]: MustacheFunction }
@@ -175,10 +179,11 @@ function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry |
   const slug = rawDateAndSlug.replace(`${date}-`, "")
 
   return {
-    collection: collectionName,
+    title: slug,
     path: path.join(collectionName, slug),
     date: new Date(date),
-    title: slug,
+    collection: collectionName,
+    data: {},
   }
 }
 
@@ -315,14 +320,16 @@ function renderHTMLPage(
   outputFiles: OutputFiles,
   partials: Templates,
   layouts: Templates,
-): { title: string; html: string } {
-  const context: RenderContext = {
+): [renderedPage: string, page: Context["page"]] {
+  const context: Context = {
     site: {
       url: "", // @TODO: Implement.
     },
     page: {
       title: "",
+      date: null,
       content: "",
+      data: {},
     },
     collection: collectionNameToEntries,
     fn: TEMPLATE_FUNCTIONS,
@@ -330,28 +337,22 @@ function renderHTMLPage(
 
   const preTemplateDocument = parseHTML(fileContents)
 
+  // Find the page title.
   const titleElement = preTemplateDocument.querySelector("title")
+  const headingElement = preTemplateDocument.querySelector("h1:not([sb\\:ignore])")
 
   if (titleElement) {
     context.page.title = titleElement.textContent
-  }
-
-  const headingElement = preTemplateDocument.querySelector("h1")
-
-  if (headingElement) {
+  } else if (headingElement) {
     context.page.title = headingElement.textContent
   }
 
-  // Parse script tags containing data and add it to the `context`.
+  // Parse script tags containing page data.
   for (const element of preTemplateDocument.querySelectorAll("[sb\\:buildtime]")) {
     if (element.getAttribute("type") != "application/json") continue
 
     try {
-      const pageData = JSON.parse(element.textContent.trim())
-      context.page = {
-        ...context.page,
-        ...pageData,
-      }
+      context.page.data = JSON.parse(element.textContent.trim())
     } catch (err: unknown) {
       console.error("Error parsing buildtime data\n> " + err)
     }
@@ -424,10 +425,7 @@ function renderHTMLPage(
 
   inputDependencies.set(absoluteFilePath, dependencies)
 
-  return {
-    title: context.page.title,
-    html: document.toString(),
-  }
+  return [document.toString(), context.page]
 }
 
 export default async function staticbuild(options: StaticBuildOptions) {
@@ -515,7 +513,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
           const html = markdown.parse(fileContents)
-          const { title, html: renderedPage } = renderHTMLPage(
+          const [renderedPage, page] = renderHTMLPage(
             reloader,
             options,
             absoluteFilePath,
@@ -530,7 +528,8 @@ export default async function staticbuild(options: StaticBuildOptions) {
           const existingEntries = collectionNameToEntries[collectionEntry.collection] || []
           if (existingEntries.find((entry) => entry.path === collectionEntry.path)) continue
 
-          collectionEntry.title = title
+          collectionEntry.title = page.title
+          collectionEntry.data = page.data
 
           existingEntries.push(collectionEntry)
           collectionNameToEntries[collectionEntry.collection] = existingEntries
@@ -546,7 +545,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
         case ".html": {
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
-          const { html: renderedPage } = renderHTMLPage(
+          const [renderedPage] = renderHTMLPage(
             reloader,
             options,
             absoluteFilePath,
