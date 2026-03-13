@@ -566,10 +566,36 @@ export default async function staticbuild(options: StaticBuildOptions) {
           existingEntries.push(collectionEntry)
           collectionNameToEntries[collectionEntry.collection] = existingEntries
 
-          // Turn modified HTML back into a file.
           outputFiles.set(fileID, {
             buffer: Buffer.from(renderedPage),
             outputPath: path.join(options.outputDirectory, collectionEntry.path, "index.html"),
+          })
+
+          break
+        }
+
+        case ".xml": {
+          const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
+          const context: Context = {
+            site: {
+              url: "", // @TODO: Implement.
+            },
+            page: {
+              title: "",
+              date: null,
+              content: "",
+              data: {},
+            },
+            collection: collectionNameToEntries,
+            fn: TEMPLATE_FUNCTIONS,
+            attributes: {},
+          }
+
+          const html = Mustache.render(fileContents, context, Object.fromEntries(partials))
+
+          outputFiles.set(fileID, {
+            buffer: Buffer.from(html),
+            outputPath: path.join(options.outputDirectory, relativeFilePath),
           })
 
           break
@@ -589,7 +615,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
             layouts,
           )
 
-          // Turn modified HTML back into a file.
           outputFiles.set(fileID, {
             buffer: Buffer.from(renderedPage),
             outputPath: path.join(options.outputDirectory, relativeFilePath),
