@@ -7,7 +7,7 @@
   <br><br>
 </div>
 
-`staticbuild` is a static site generator with  minimum support for anything other than my own websites.
+`staticbuild` is a static site generator with minimum support for anything other than my own websites.
 
 I'm currently using this on the following things:
 
@@ -24,7 +24,7 @@ I'm currently using this on the following things:
 
 ## Why
 
-Many years ago I was using `jekyll` for generating [my website](https://anthonycossins.com/). But after switching to a new computer, I found it a pain in the butt to setup all the junk that was required to get my site running. 
+Many years ago I was using `jekyll` for generating [my website](https://anthonycossins.com/). But after switching to a new computer, I found it a pain in the butt to setup all the junk that was required to get my site running.
 
 Out of frustration I built my own static site generator which is faster, simpler and makes me feel good.
 
@@ -208,11 +208,7 @@ Data can be provided to the current HTML template using the `sb:buildtime` attri
 Provide data needs to a valid JSON object.
 
 ```html
-<data sb:buildtime>
-  {
-    "items": ["1", "2", "3"]
-  }
-</data>
+<data sb:buildtime> { "items": ["1", "2", "3"] } </data>
 ```
 
 Once defined, the data can then be accessed using Mustache in the same HTML page under the `page.data` field.
