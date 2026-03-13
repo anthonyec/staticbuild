@@ -46,11 +46,75 @@ npx http-server -c-1 ./dist -p 8081
 
 ## Documentation
 
+### Special HTML Tags
+
+#### `<sb:include />`
+
+Use this tag to inline external HTML partials into a document.
+
+```html
+<sb:include src="./_partials/logo.html" />
+
+It's works like Mustache partials except you can place the partials files anywhere, and custom attributes can be passed
+into the template.
+```
+
+```html
+<sb:include src="./_partials/logo.html" size="big" title="Company Name" />
+```
+
+Custom attributes can be found on the `attributes` object.
+
+```html
+<!-- ./_partials/logo.html -->
+
+<div class="logo logo--{{attributes.size}}">
+  <img src="logo.jpg" />
+  <h1>{{attributes.title}}</h1>
+</div>
+```
+
+Children a `<sb:include>` tag can also be passed into a partial.
+
+```html
+<sb:include src="./_partials/nav.html">
+  <button>Option 1</button>
+  <button>Option 2</button>
+  <button>Option 3</button>
+</sb:include>
+```
+
+And then accessed with `attributes.children`.
+
+Since all Mustache variables by default are strings, use triple brackets `{{{ }}}` to output HTML unescaped. This lets `staticbuild` to continue to parse the children as HTML.
+
+Note that any script or style tags are not magically scoped to a file. So make sure it is accounted for in your code.
+
+```html
+<!-- ./_partials/button.html --->
+<button>Click me!</button>
+
+<script>
+  // A `querySelectorAll` is used instead of `querySelector` since there could
+  // be multiple buttons included on a page.
+  const buttons = document.querySelectorAll("button")
+
+  for (const button of buttons) {
+    button.addEventListener("click", () => console.log("HELLO"))
+  }
+</script>
+```
+
+<!-- ./_partials/nav.html -->
+
+<nav>{{{attributes.children}}}</nav>
+```
+
 ### Special HTML Attributes
 
 #### `sb:src`
 
-When building the site, `staticbuild` will if files are referenced in any `src` or `href` attribute and ensure they are downloaded.
+When building the site, `staticbuild` will check if files are referenced in any `src` or `href` attribute and ensure they are downloaded.
 
 However, sometimes you want to refer to files without loading them in the browser. For example, preloading videos.
 
@@ -81,11 +145,35 @@ SVG images can be inlined into the document. This keeps the HTML template clean 
 
 #### `sb:selector`
 
-[@TODO: Explain]
+Use this to conditionally show elements based on the existence of other elements in the DOM.
+
+This is useful if content is dynamic but uses a shared layout. For example, conditionally loading a video player script if a collection entry contains a `<video>`.
+
+```html
+
+{{#collection.blog}}
+  {{{content}}}
+{{/collection.blog}}
+
+<!--
+ This script tag will only be included in the
+ rendered output if `content` contains a video.
+-->
+<script src="./video_player.js" sb:selector="video">
+
+```
 
 #### `sb:ignore`
 
-[@TODO: Explain]
+This tag can be used on any HTML attribute to have `staticbuild` processing it.
+
+I don't like this, but I currently use it skip `<h1>` tags on certain pages being used as a title.
+
+```html
+<title>Actual page title</title>
+
+<h1 sb:ignore>Visual title</h1>
+```
 
 #### `sb:buildtime`
 

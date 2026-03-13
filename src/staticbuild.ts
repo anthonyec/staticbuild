@@ -10,7 +10,7 @@ import { scanDirectory } from "./fs"
 import { watcher } from "./watcher"
 import { createReloader, Reloader } from "./reloader"
 
-const ASSETS_SELECTOR = "img, video, a, link[href], script[src]"
+const ASSETS_SELECTOR = "img, video, a, link[href], script[src], sb\\:include[src]"
 
 const TEMPLATE_FUNCTIONS: Context["fn"] = {
   dateToISO8601: () => (text, subRender) => {
@@ -106,6 +106,7 @@ type Context = {
   }
   collection: CollectionEntries
   fn: { [name: string]: MustacheFunction }
+  attributes: { [name: string]: string }
 }
 
 function isMemoryFile(value: unknown): value is MemoryOutputFile {
@@ -333,6 +334,7 @@ function renderHTMLPage(
     },
     collection: collectionNameToEntries,
     fn: TEMPLATE_FUNCTIONS,
+    attributes: {},
   }
 
   const preTemplateDocument = parseHTML(fileContents)
@@ -382,6 +384,26 @@ function renderHTMLPage(
   // relative to absolute. This makes it easier to deal with for both developer
   // and processing.
   resolveAllPathsToAbsolute(currentDirectory, document)
+
+  for (const element of document.querySelectorAll("sb\\:include")) {
+    const src = element.getAttribute("src")
+    if (!src) continue
+    if (!fs.existsSync(src)) continue
+
+    const includeContents = fs.readFileSync(src, "utf8")
+    const includeDocument = parseHTML(includeContents)
+    resolveAllPathsToAbsolute(path.dirname(src), includeDocument)
+
+    const includeHtml = Mustache.render(includeDocument.toString(), {
+      ...context,
+      attributes: {
+        ...element.attributes,
+        children: element.innerHTML,
+      },
+    })
+
+    element.replaceWith(includeHtml)
+  }
 
   // Execute buildtime script tags.
   for (const element of document.querySelectorAll("script[sb\\:buildtime]")) {

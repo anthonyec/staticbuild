@@ -1,6 +1,5 @@
-{{>header}}
-
-{{>nav}}
+<sb:include src="./_partials/header.html"/>
+<sb:include src="./_partials/nav.html"/>
 
 <style>
   * {
@@ -24,4 +23,10 @@
 
 <h1>Welcome to my Website!</h1>
 
-{{>footer}}
+<sb:include src="./_partials/button.html" label="Custom label!"/>
+
+<sb:include src="./_partials/button.html" label="Another button!">
+  <button>Hello</button>
+</sb:include>
+
+<sb:include src="./_partials/footer.html"/>
