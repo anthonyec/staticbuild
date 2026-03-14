@@ -54,6 +54,8 @@ interface StaticBuildOptions {
   ignoredPaths?: string[]
 }
 
+type WillMutate<T> = T
+
 type FilePath = string
 type FileID = string
 
@@ -121,18 +123,25 @@ function hash(value: string): string {
   return crypto.createHash("md5").update(value).digest("hex")
 }
 
-function resolveAllAttributes(currentDirectory: string, root: HTMLElement) {
+function resolveToAbsoluteInputPath(currentDirectory: string, value: string): string | undefined {
+  if (!value) return
+  if (!value.includes("/")) return
+  if (value.startsWith("http")) return
+
+  const inputPath = path.resolve(currentDirectory, value)
+  if (!fs.existsSync(inputPath)) return
+  if (fs.statSync(inputPath).isDirectory()) return
+
+  return path.join("/", inputPath)
+}
+
+function resolveAttributesToAbsoluteInputPaths(currentDirectory: string, root: WillMutate<HTMLElement>) {
   for (const element of root.querySelectorAll("*")) {
     for (const [name, value] of Object.entries(element.attributes)) {
-      if (!value) continue
-      if (!value.includes("/")) continue
-      if (value.startsWith("http")) continue
+      const inputPath = resolveToAbsoluteInputPath(currentDirectory, value)
+      if (!inputPath) continue
 
-      const inputPath = path.resolve(currentDirectory, value)
-      if (!fs.existsSync(inputPath)) continue
-      if (fs.statSync(inputPath).isDirectory()) continue
-
-      element.setAttribute(name, path.join("/", inputPath))
+      element.setAttribute(name, inputPath)
     }
   }
 }
@@ -149,7 +158,7 @@ function getTemplates(inputDirectory: string, directoryName: string): Templates 
     const fileContents = fs.readFileSync(file.path, "utf8")
 
     const document = parseHTML(fileContents)
-    resolveAllAttributes(templatesDirectory, document)
+    resolveAttributesToAbsoluteInputPaths(templatesDirectory, document)
 
     templates.set(file.name, document.toString())
   }
@@ -188,12 +197,48 @@ function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry |
   }
 }
 
-function collectAssets(
+function absoluteInputPathToRelativeOutputPath(inputDirectory: string, absoluteInputPath: string): string {
+  const relativeInputPath = path.relative(inputDirectory, absoluteInputPath)
+  const collectionEntry = getCollectionEntryFromPath(relativeInputPath)
+
+  if (collectionEntry) {
+    const [, , ...rest] = relativeInputPath.split("/")
+    return path.join("/", path.join(collectionEntry.path, ...rest))
+  }
+
+  return path.join("/", relativeInputPath)
+}
+
+function collectAssetsFromPageData(
+  currentDirectory: string,
   inputDirectory: string,
   outputDirectory: string,
-  document: HTMLElement,
-  files: OutputFiles,
-  dependencies: Dependencies,
+  files: WillMutate<OutputFiles>,
+  dependencies: WillMutate<Dependencies>,
+  pageData: PageData,
+) {
+  for (const value of Object.values(pageData)) {
+    const absoluteInputPath = resolveToAbsoluteInputPath(currentDirectory, value)
+    if (!absoluteInputPath) continue
+
+    const relativeOutputPath = absoluteInputPathToRelativeOutputPath(inputDirectory, absoluteInputPath)
+
+    dependencies.add(absoluteInputPath)
+
+    const fileID = hash(absoluteInputPath)
+    files.set(fileID, {
+      inputPath: absoluteInputPath,
+      outputPath: path.join(outputDirectory, relativeOutputPath),
+    })
+  }
+}
+
+function collectAssetsFromDocument(
+  inputDirectory: string,
+  outputDirectory: string,
+  files: WillMutate<OutputFiles>,
+  dependencies: WillMutate<Dependencies>,
+  document: WillMutate<HTMLElement>,
 ) {
   // @TODO(SPEED): No need to go over paths again and check since when resolving
   // we could keep a list and reuse it here. IT will be a big speed improvement
@@ -204,53 +249,42 @@ function collectAssets(
       if (!value.includes("/")) continue
       if (!value.startsWith(inputDirectory)) continue
 
-      const inputPath = value
+      const absoluteInputPath = value
 
-      if (!fs.existsSync(inputPath)) {
-        console.error(`Could not find asset: ${inputPath}`)
+      if (!fs.existsSync(absoluteInputPath)) {
+        console.error(`Could not find asset: ${absoluteInputPath}`)
         continue
       }
 
-      if (fs.statSync(inputPath).isDirectory()) {
-        console.error(`Skipping asset, it's a directory: ${inputPath}`)
+      if (fs.statSync(absoluteInputPath).isDirectory()) {
+        console.error(`Skipping asset, it's a directory: ${absoluteInputPath}`)
         continue
       }
 
-      if (path.extname(inputPath) && element.hasAttribute("sb:inline")) {
-        const svg = fs.readFileSync(inputPath, "utf8")
+      if (path.extname(absoluteInputPath) && element.hasAttribute("sb:inline")) {
+        const svg = fs.readFileSync(absoluteInputPath, "utf8")
         element.replaceWith(svg)
-      }
-
-      const fileID = hash(inputPath)
-      dependencies.add(inputPath)
-
-      const relativeInputDirectory = path.relative(inputDirectory, inputPath)
-      const collectionEntry = getCollectionEntryFromPath(relativeInputDirectory)
-
-      if (collectionEntry) {
-        const [, , ...rest] = relativeInputDirectory.split("/")
-
-        const relativeOutputPath = path.join(collectionEntry.path, ...rest)
-        element.setAttribute(name, path.join("/", relativeOutputPath))
-
-        files.set(fileID, {
-          inputPath,
-          outputPath: path.join(outputDirectory, relativeOutputPath),
-        })
         continue
       }
 
-      element.setAttribute(name, path.join("/", relativeInputDirectory))
+      const relativeOutputPath = absoluteInputPathToRelativeOutputPath(inputDirectory, absoluteInputPath)
+      element.setAttribute(name, path.join("/", relativeOutputPath))
+      dependencies.add(absoluteInputPath)
 
+      const fileID = hash(absoluteInputPath)
       files.set(fileID, {
-        inputPath,
-        outputPath: path.join(outputDirectory, relativeInputDirectory),
+        inputPath: absoluteInputPath,
+        outputPath: path.join(outputDirectory, relativeOutputPath),
       })
     }
   }
 }
 
-function collectInlineCode(outputDirectory: string, document: HTMLElement, files: OutputFiles) {
+function collectInlineCodeFromDocument(
+  outputDirectory: string,
+  files: WillMutate<OutputFiles>,
+  document: WillMutate<HTMLElement>,
+) {
   let scriptContent = ""
   let styleContent = ""
 
@@ -308,12 +342,15 @@ function renderHTMLPage(
   options: StaticBuildOptions,
   absoluteFilePath: string,
   fileContents: string,
-  collectionNameToEntries: CollectionEntries,
-  inputDependencies: InputDependencies,
-  outputFiles: OutputFiles,
+  collectionNameToEntries: WillMutate<CollectionEntries>,
+  inputDependencies: WillMutate<InputDependencies>,
+  outputFiles: WillMutate<OutputFiles>,
   layouts: Templates,
 ): [renderedPage: string, page: Context["page"]] {
+  const currentDirectory = path.dirname(absoluteFilePath)
+
   const dependencies: Set<string> = new Set()
+  const assetInputPaths: Set<string> = new Set()
 
   const context: Context = {
     site: {
@@ -356,7 +393,6 @@ function renderHTMLPage(
   // Setup page template if one exists.
   context.page.content = preTemplateDocument.toString()
 
-  const currentDirectory = path.dirname(absoluteFilePath)
   const relativeInputDirectory = path.relative(options.inputDirectory, currentDirectory)
   const collectionEntry = getCollectionEntryFromPath(relativeInputDirectory)
 
@@ -376,7 +412,7 @@ function renderHTMLPage(
   // Before assets are collected or modified, change all the source paths from
   // relative to absolute. This makes it easier to deal with for both developer
   // and processing.
-  resolveAllAttributes(currentDirectory, document)
+  resolveAttributesToAbsoluteInputPaths(currentDirectory, document)
 
   const includeStack = Array.from(document.querySelectorAll("sb\\:include"))
 
@@ -400,7 +436,7 @@ function renderHTMLPage(
     const includeContents = fs.readFileSync(src, "utf8")
 
     const includeDocument = parseHTML(includeContents)
-    resolveAllAttributes(path.dirname(src), includeDocument)
+    resolveAttributesToAbsoluteInputPaths(path.dirname(src), includeDocument)
 
     const includeHtml = Mustache.render(includeDocument.toString(), {
       ...context,
@@ -441,9 +477,25 @@ function renderHTMLPage(
     }
   }
 
-  // Modify the page assets.
-  collectAssets(options.inputDirectory, options.outputDirectory, document, outputFiles, dependencies)
-  collectInlineCode(options.outputDirectory, document, outputFiles)
+  for (const value of Object.values(context.page.data)) {
+    const inputPath = resolveToAbsoluteInputPath(currentDirectory, value)
+    if (!inputPath) continue
+
+    assetInputPaths.add(inputPath)
+  }
+
+  // Collect the assets and if needed, modify the page if needed to reflect the
+  // final output asset paths.
+  collectAssetsFromPageData(
+    currentDirectory,
+    options.inputDirectory,
+    options.outputDirectory,
+    outputFiles,
+    dependencies,
+    context.page.data,
+  )
+  collectAssetsFromDocument(options.inputDirectory, options.outputDirectory, outputFiles, dependencies, document)
+  collectInlineCodeFromDocument(options.outputDirectory, outputFiles, document)
 
   // Tidy the document.
   let headElement = document.querySelector("head")
