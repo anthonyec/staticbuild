@@ -285,51 +285,61 @@ function collectInlineCodeFromDocument(
   files: WillMutate<OutputFiles>,
   document: WillMutate<HTMLElement>,
 ) {
-  let scriptContent = ""
-  let styleContent = ""
+  const styles: Set<string> = new Set()
+  const scripts: Set<string> = new Set()
 
   for (const element of document.querySelectorAll("style, script:not([src])")) {
     if (element.hasAttribute("sb:buildtime")) continue
 
     const textContent = element.textContent
-
     element.remove()
 
     switch (element.tagName) {
       case "STYLE": {
-        styleContent += textContent + "\n"
+        styles.add(textContent)
         break
       }
 
       case "SCRIPT": {
-        scriptContent += textContent + "\n"
+        scripts.add(textContent)
         break
       }
     }
   }
 
-  if (styleContent) {
-    const fileID = hash(styleContent)
-    const relativePath = path.join("/", "assets", "css", fileID + ".css")
+  let styleContents = ""
+  let scriptContents = ""
 
-    files.set(fileID, {
-      buffer: Buffer.from(styleContent),
-      outputPath: path.join(outputDirectory, relativePath),
-    })
-
-    document.append(`<link rel="stylesheet" href="${relativePath}"/ >`)
+  for (const style of styles) {
+    styleContents += style + "\n"
   }
 
-  if (scriptContent) {
-    const fileID = hash(scriptContent)
-    const relativePath = path.join("/", "assets", "js", fileID + ".js")
+  for (const script of scripts) {
+    scriptContents += `(function() {${script}})()` + "\n"
+  }
+
+  if (styleContents.trim()) {
+    const fileID = hash(styleContents)
+    const relativeOutputPath = path.join("/", "assets", "css", fileID + ".css")
 
     files.set(fileID, {
-      buffer: Buffer.from(scriptContent),
-      outputPath: path.join(outputDirectory, relativePath),
+      buffer: Buffer.from(styleContents),
+      outputPath: path.join(outputDirectory, relativeOutputPath),
     })
 
-    document.append(`<script src="${relativePath}" async defer></script>`)
+    document.append(`<link rel="stylesheet" href="${relativeOutputPath}"/ >`)
+  }
+
+  if (scriptContents.trim()) {
+    const fileID = hash(scriptContents)
+    const relativeOutputPath = path.join("/", "assets", "js", fileID + ".js")
+
+    files.set(fileID, {
+      buffer: Buffer.from(scriptContents),
+      outputPath: path.join(outputDirectory, relativeOutputPath),
+    })
+
+    document.append(`<script src="${relativeOutputPath}" async defer></script>`)
   }
 }
 
