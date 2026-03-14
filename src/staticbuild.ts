@@ -138,10 +138,10 @@ function resolveToAbsoluteInputPath(currentDirectory: string, value: string): st
 function resolveAttributesToAbsoluteInputPaths(currentDirectory: string, root: WillMutate<HTMLElement>) {
   for (const element of root.querySelectorAll("*")) {
     for (const [name, value] of Object.entries(element.attributes)) {
-      const inputPath = resolveToAbsoluteInputPath(currentDirectory, value)
-      if (!inputPath) continue
+      const absoluteInputPath = resolveToAbsoluteInputPath(currentDirectory, value)
+      if (!absoluteInputPath) continue
 
-      element.setAttribute(name, inputPath)
+      element.setAttribute(name, absoluteInputPath)
     }
   }
 }
@@ -350,7 +350,6 @@ function renderHTMLPage(
   const currentDirectory = path.dirname(absoluteFilePath)
 
   const dependencies: Set<string> = new Set()
-  const assetInputPaths: Set<string> = new Set()
 
   const context: Context = {
     site: {
@@ -475,13 +474,6 @@ function renderHTMLPage(
     } else {
       element.removeAttribute("sb:selector")
     }
-  }
-
-  for (const value of Object.values(context.page.data)) {
-    const inputPath = resolveToAbsoluteInputPath(currentDirectory, value)
-    if (!inputPath) continue
-
-    assetInputPaths.add(inputPath)
   }
 
   // Collect the assets and if needed, modify the page if needed to reflect the
