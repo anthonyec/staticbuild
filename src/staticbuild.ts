@@ -2,15 +2,13 @@ import * as fs from "node:fs"
 import * as path from "node:path"
 import * as crypto from "node:crypto"
 import { HTMLElement, parse as parseHTML } from "node-html-parser"
-import Mustache, { parse } from "mustache"
+import Mustache, { Context, parse } from "mustache"
 import * as markdown from "markdown-wasm"
 
 import { assert } from "./assert"
 import { scanDirectory } from "./fs"
 import { watcher } from "./watcher"
 import { createReloader, Reloader } from "./reloader"
-
-const ASSETS_SELECTOR = "img, video, a, link[href], script[src], sb\\:include[src]"
 
 const TEMPLATE_FUNCTIONS: Context["fn"] = {
   dateToISO8601: () => (text, subRender) => {
@@ -109,6 +107,8 @@ type Context = {
   attributes: { [name: string]: string }
 }
 
+type Templates = Map<string, string>
+
 function isMemoryFile(value: unknown): value is MemoryOutputFile {
   return value != null && typeof value == "object" && "buffer" in value
 }
@@ -121,40 +121,40 @@ function hash(value: string): string {
   return crypto.createHash("md5").update(value).digest("hex")
 }
 
-function resolveAllPathsToAbsolute(currentDirectory: string, document: HTMLElement) {
-  for (const element of document.querySelectorAll(ASSETS_SELECTOR)) {
-    const attribute = getAssetAttribute(element)
-    if (!attribute) continue
-    if (attribute.value.startsWith("http")) continue
+function resolvePathAttributesToAbsolute(currentDirectory: string, root: HTMLElement) {
+  for (const element of root.querySelectorAll("*")) {
+    for (const [name, value] of Object.entries(element.attributes)) {
+      if (!value) continue
+      if (!value.includes("/")) continue
+      if (value.startsWith("http")) continue
 
-    const inputPath = path.resolve(currentDirectory, attribute.value)
-    if (!fs.existsSync(inputPath)) continue
-    if (fs.statSync(inputPath).isDirectory()) continue
+      const inputPath = path.resolve(currentDirectory, value)
+      if (!fs.existsSync(inputPath)) continue
+      if (fs.statSync(inputPath).isDirectory()) continue
 
-    element.setAttribute(attribute.name, path.join("/", inputPath))
+      element.setAttribute(name, path.join("/", inputPath))
+    }
   }
 }
-
-type Templates = Map<string, string>
 
 function getTemplates(inputDirectory: string, directoryName: string): Templates {
   assert(directoryName.startsWith("_"))
 
-  const partials: Templates = new Map()
+  const templates: Templates = new Map()
 
   const templatesDirectory = path.join(inputDirectory, directoryName)
-  if (!fs.existsSync(templatesDirectory)) return partials
+  if (!fs.existsSync(templatesDirectory)) return templates
 
   for (const file of scanDirectory(templatesDirectory)) {
     const fileContents = fs.readFileSync(file.path, "utf8")
 
     const document = parseHTML(fileContents)
-    resolveAllPathsToAbsolute(templatesDirectory, document)
+    resolvePathAttributesToAbsolute(templatesDirectory, document)
 
-    partials.set(file.name, document.toString())
+    templates.set(file.name, document.toString())
   }
 
-  return partials
+  return templates
 }
 
 function shouldSkipFilePath(relativeFilePath: string, ignoredPaths: string[] = []): boolean {
@@ -188,17 +188,6 @@ function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry |
   }
 }
 
-function getAssetAttribute(element: HTMLElement): { name: string; value: string } | undefined {
-  // @TODO: Only supports one asset attribute per element.
-  for (const name of ["src", "sb:src", "href"]) {
-    const value = element.getAttribute(name)
-
-    if (value) {
-      return { name, value }
-    }
-  }
-}
-
 function collectAssets(
   inputDirectory: string,
   outputDirectory: string,
@@ -206,55 +195,54 @@ function collectAssets(
   files: OutputFiles,
   dependencies: Dependencies,
 ) {
-  for (const element of document.querySelectorAll(ASSETS_SELECTOR)) {
-    const attribute = getAssetAttribute(element)
-    if (!attribute) continue
+  for (const element of document.querySelectorAll("*")) {
+    for (const [name, value] of Object.entries(element.attributes)) {
+      const inputPath = value
+      if (!inputPath) continue
+      if (!inputPath.includes("/")) continue
+      if (!inputPath.startsWith(inputDirectory)) continue
 
-    const inputPath = attribute.value
-    if (!inputPath) continue
-    if (!inputPath.startsWith(inputDirectory)) continue
+      if (!fs.existsSync(inputPath)) {
+        console.error(`Could not find asset: ${inputPath}`)
+        continue
+      }
 
-    if (!fs.existsSync(inputPath)) {
-      console.error(`Could not find asset: ${inputPath}`)
-      continue
-    }
+      if (fs.statSync(inputPath).isDirectory()) {
+        console.error(`Skipping asset, it's a directory: ${inputPath}`)
+        continue
+      }
 
-    if (fs.statSync(inputPath).isDirectory()) {
-      console.error(`Skipping asset, it's a directory: ${inputPath}`)
-      continue
-    }
+      if (path.extname(inputPath) && element.hasAttribute("sb:inline")) {
+        const svg = fs.readFileSync(inputPath, "utf8")
+        element.replaceWith(svg)
+      }
 
-    if (path.extname(inputPath) && element.hasAttribute("sb:inline")) {
-      const svg = fs.readFileSync(inputPath, "utf8")
-      element.replaceWith(svg)
-    }
+      const fileID = hash(inputPath)
+      dependencies.add(inputPath)
 
-    const fileID = hash(inputPath)
+      const relativeInputDirectory = path.relative(inputDirectory, inputPath)
+      const collectionEntry = getCollectionEntryFromPath(relativeInputDirectory)
 
-    dependencies.add(inputPath)
+      if (collectionEntry) {
+        const [, , ...rest] = relativeInputDirectory.split("/")
 
-    const relativeInputDirectory = path.relative(inputDirectory, inputPath)
-    const collectionEntry = getCollectionEntryFromPath(relativeInputDirectory)
+        const relativeOutputPath = path.join(collectionEntry.path, ...rest)
+        element.setAttribute(name, path.join("/", relativeOutputPath))
 
-    if (collectionEntry) {
-      const [, , ...rest] = relativeInputDirectory.split("/")
+        files.set(fileID, {
+          inputPath,
+          outputPath: path.join(outputDirectory, relativeOutputPath),
+        })
+        continue
+      }
 
-      const relativeOutputPath = path.join(collectionEntry.path, ...rest)
-      element.setAttribute(attribute.name, path.join("/", relativeOutputPath))
+      element.setAttribute(name, path.join("/", relativeInputDirectory))
 
       files.set(fileID, {
         inputPath,
-        outputPath: path.join(outputDirectory, relativeOutputPath),
+        outputPath: path.join(outputDirectory, relativeInputDirectory),
       })
-      continue
     }
-
-    element.setAttribute(attribute.name, path.join("/", relativeInputDirectory))
-
-    files.set(fileID, {
-      inputPath,
-      outputPath: path.join(outputDirectory, relativeInputDirectory),
-    })
   }
 }
 
@@ -319,9 +307,10 @@ function renderHTMLPage(
   collectionNameToEntries: CollectionEntries,
   inputDependencies: InputDependencies,
   outputFiles: OutputFiles,
-  partials: Templates,
   layouts: Templates,
 ): [renderedPage: string, page: Context["page"]] {
+  const dependencies: Set<string> = new Set()
+
   const context: Context = {
     site: {
       url: "", // @TODO: Implement.
@@ -375,7 +364,7 @@ function renderHTMLPage(
   const template = layout ?? preTemplateDocument.toString()
 
   // Parse and render template.
-  const html = Mustache.render(template, context, Object.fromEntries(partials))
+  const html = Mustache.render(template, context)
 
   // Parse the HTML ready for modification.
   let document = parseHTML(html)
@@ -383,16 +372,31 @@ function renderHTMLPage(
   // Before assets are collected or modified, change all the source paths from
   // relative to absolute. This makes it easier to deal with for both developer
   // and processing.
-  resolveAllPathsToAbsolute(currentDirectory, document)
+  resolvePathAttributesToAbsolute(currentDirectory, document)
 
-  for (const element of document.querySelectorAll("sb\\:include")) {
+  const includeStack = Array.from(document.querySelectorAll("sb\\:include"))
+
+  while (includeStack.length) {
+    const element = includeStack.pop()
+    if (!element) break
+
     const src = element.getAttribute("src")
-    if (!src) continue
-    if (!fs.existsSync(src)) continue
+
+    if (!src) {
+      element.remove()
+      continue
+    }
+
+    if (!fs.existsSync(src)) {
+      console.error(`Could not find include: ${src}`)
+      element.remove()
+      continue
+    }
 
     const includeContents = fs.readFileSync(src, "utf8")
+
     const includeDocument = parseHTML(includeContents)
-    resolveAllPathsToAbsolute(path.dirname(src), includeDocument)
+    resolvePathAttributesToAbsolute(path.dirname(src), includeDocument)
 
     const includeHtml = Mustache.render(includeDocument.toString(), {
       ...context,
@@ -402,7 +406,10 @@ function renderHTMLPage(
       },
     })
 
+    includeStack.push(...Array.from(includeDocument.querySelectorAll("sb\\:include")))
+
     element.replaceWith(includeHtml)
+    dependencies.add(src)
   }
 
   // Execute buildtime script tags.
@@ -431,7 +438,6 @@ function renderHTMLPage(
   }
 
   // Modify the page assets.
-  const dependencies: Set<string> = new Set()
   collectAssets(options.inputDirectory, options.outputDirectory, document, outputFiles, dependencies)
   collectInlineCode(options.outputDirectory, document, outputFiles)
 
@@ -475,7 +481,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
     console.time("Built")
 
     const layouts = getTemplates(options.inputDirectory, "_layouts")
-    const partials = getTemplates(options.inputDirectory, "_partials")
 
     if (changedFilePaths.length == 0) {
       for await (const file of scanDirectory(options.inputDirectory)) {
@@ -553,7 +558,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
             collectionNameToEntries,
             inputDependencies,
             outputFiles,
-            partials,
             layouts,
           )
 
@@ -591,7 +595,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
             attributes: {},
           }
 
-          const html = Mustache.render(fileContents, context, Object.fromEntries(partials))
+          const html = Mustache.render(fileContents, context)
 
           outputFiles.set(fileID, {
             buffer: Buffer.from(html),
@@ -611,7 +615,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
             collectionNameToEntries,
             inputDependencies,
             outputFiles,
-            partials,
             layouts,
           )
 

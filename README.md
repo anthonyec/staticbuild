@@ -113,18 +113,6 @@ Note that any script or style tags are not magically scoped to a file. So make s
 
 ### Special HTML Attributes
 
-#### `sb:src`
-
-When building the site, `staticbuild` will check if files are referenced in any `src` or `href` attribute and ensure they are downloaded.
-
-However, sometimes you want to refer to files without loading them in the browser. For example, preloading videos.
-
-Use the attribute `sb:src="<PATH_TO_ASSET>"` to make `staticbuild` aware of the file and to copy it over when building the site.
-
-```html
-<video sb:src="my_cool_video.webm"></video>
-```
-
 #### `sb:inline`
 
 SVG images can be inlined into the document. This keeps the HTML template clean while giving access to the SVG elements to style with CSS or modify with JS.
