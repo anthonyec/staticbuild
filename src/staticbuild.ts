@@ -121,7 +121,7 @@ function hash(value: string): string {
   return crypto.createHash("md5").update(value).digest("hex")
 }
 
-function resolvePathAttributesToAbsolute(currentDirectory: string, root: HTMLElement) {
+function resolveAllAttributes(currentDirectory: string, root: HTMLElement) {
   for (const element of root.querySelectorAll("*")) {
     for (const [name, value] of Object.entries(element.attributes)) {
       if (!value) continue
@@ -149,7 +149,7 @@ function getTemplates(inputDirectory: string, directoryName: string): Templates 
     const fileContents = fs.readFileSync(file.path, "utf8")
 
     const document = parseHTML(fileContents)
-    resolvePathAttributesToAbsolute(templatesDirectory, document)
+    resolveAllAttributes(templatesDirectory, document)
 
     templates.set(file.name, document.toString())
   }
@@ -195,12 +195,16 @@ function collectAssets(
   files: OutputFiles,
   dependencies: Dependencies,
 ) {
+  // @TODO(SPEED): No need to go over paths again and check since when resolving
+  // we could keep a list and reuse it here. IT will be a big speed improvement
+  // if this is done! ~600ms to ~130ms!
   for (const element of document.querySelectorAll("*")) {
     for (const [name, value] of Object.entries(element.attributes)) {
+      if (!value) continue
+      if (!value.includes("/")) continue
+      if (!value.startsWith(inputDirectory)) continue
+
       const inputPath = value
-      if (!inputPath) continue
-      if (!inputPath.includes("/")) continue
-      if (!inputPath.startsWith(inputDirectory)) continue
 
       if (!fs.existsSync(inputPath)) {
         console.error(`Could not find asset: ${inputPath}`)
@@ -372,7 +376,7 @@ function renderHTMLPage(
   // Before assets are collected or modified, change all the source paths from
   // relative to absolute. This makes it easier to deal with for both developer
   // and processing.
-  resolvePathAttributesToAbsolute(currentDirectory, document)
+  resolveAllAttributes(currentDirectory, document)
 
   const includeStack = Array.from(document.querySelectorAll("sb\\:include"))
 
@@ -396,7 +400,7 @@ function renderHTMLPage(
     const includeContents = fs.readFileSync(src, "utf8")
 
     const includeDocument = parseHTML(includeContents)
-    resolvePathAttributesToAbsolute(path.dirname(src), includeDocument)
+    resolveAllAttributes(path.dirname(src), includeDocument)
 
     const includeHtml = Mustache.render(includeDocument.toString(), {
       ...context,
