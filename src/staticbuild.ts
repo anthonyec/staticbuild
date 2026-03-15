@@ -90,6 +90,7 @@ type CollectionName = string
 type CollectionEntry = {
   title: string
   path: string
+  relativeInputPath: string
   date: Date
   collection: CollectionName
   data: PageData
@@ -204,6 +205,7 @@ function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry |
   return {
     title: slug,
     path: path.join(collectionName, slug),
+    relativeInputPath: relativeFilePath,
     date: new Date(date),
     collection: collectionName,
     data: {},
@@ -360,6 +362,25 @@ function absoluteToRelativePath(inputDirectory: string, absolutePath: string): s
   return absolutePath.replace(path.join(inputDirectory, "/"), "")
 }
 
+function collectCollectionDependencies(
+  inputDirectory: string,
+  template: string,
+  collectionNameToEntries: CollectionEntries,
+  dependencies: WillMutate<Set<string>>,
+) {
+  for (const spans of Mustache.parse(template)) {
+    const [command, argument] = spans
+    if (command !== "#") continue
+    if (!argument.startsWith("collection.")) continue
+
+    const [, collectionName] = argument.split(".")
+
+    for (const entry of collectionNameToEntries[collectionName]) {
+      dependencies.add(path.join(inputDirectory, entry.relativeInputPath))
+    }
+  }
+}
+
 function renderHTMLPage(
   reloader: Reloader,
   options: StaticBuildOptions,
@@ -425,8 +446,9 @@ function renderHTMLPage(
   const layout = collectionEntry && layouts && layouts.get(collectionEntry.collection)
   const template = layout ?? preTemplateDocument.toString()
 
-  // Parse and render template.
+  // Render template.
   const html = Mustache.render(template, context)
+  collectCollectionDependencies(options.inputDirectory, template, collectionNameToEntries, dependencies)
 
   // Parse the HTML ready for modification.
   let document = parseHTML(html)
@@ -550,8 +572,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
   const build = async (changedFilePaths: string[] = []) => {
     console.time("Built")
 
-    const layouts = getTemplates(options.inputDirectory, "_layouts")
-
     if (changedFilePaths.length == 0) {
       for await (const file of scanDirectory(options.inputDirectory)) {
         changedFilePaths.push(file.path)
@@ -600,9 +620,9 @@ export default async function staticbuild(options: StaticBuildOptions) {
         continue
       }
 
-      for (const [dependencyRoot, dependencies] of inputDependencies) {
+      for (const [parent, dependencies] of inputDependencies) {
         if (dependencies.has(absoluteFilePath)) {
-          filePathProcessStack.push(dependencyRoot)
+          filePathProcessStack.push(parent)
         }
       }
 
@@ -611,12 +631,10 @@ export default async function staticbuild(options: StaticBuildOptions) {
       const relativeFilePath = absoluteToRelativePath(options.inputDirectory, absoluteFilePath)
       if (shouldSkipFilePath(relativeFilePath, options.ignoredPaths)) continue
 
-      const collectionEntry = getCollectionEntryFromPath(relativeFilePath)
-      const fileExtension = path.extname(absoluteFilePath)
-      const fileBasename = path.basename(absoluteFilePath)
-
-      switch (fileExtension) {
+      switch (path.extname(absoluteFilePath)) {
         case ".js": {
+          const fileBasename = path.basename(absoluteFilePath)
+
           if (fileBasename === "_config.js") {
             const userConfig = (requireUncached<UserConfig>(absoluteFilePath) ?? {}) as UserConfig
 
@@ -656,7 +674,13 @@ export default async function staticbuild(options: StaticBuildOptions) {
         }
 
         case ".md": {
+          const fileBasename = path.basename(absoluteFilePath)
+          if (fileBasename !== "index.md") continue
+
+          const collectionEntry = getCollectionEntryFromPath(relativeFilePath)
           if (!collectionEntry) continue
+
+          const layouts = getTemplates(options.inputDirectory, "_layouts")
 
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
           const html = markdown.parse(fileContents)
@@ -672,13 +696,18 @@ export default async function staticbuild(options: StaticBuildOptions) {
           )
 
           const existingEntries = collectionNameToEntries[collectionEntry.collection] || []
-          if (existingEntries.find((entry) => entry.path === collectionEntry.path)) continue
+          collectionNameToEntries[collectionEntry.collection] = existingEntries
 
           collectionEntry.title = page.title
           collectionEntry.data = page.data
 
-          existingEntries.push(collectionEntry)
-          collectionNameToEntries[collectionEntry.collection] = existingEntries
+          const existingEntryIndex = existingEntries.findIndex((entry) => entry.path === collectionEntry.path)
+
+          if (existingEntryIndex !== -1) {
+            existingEntries[existingEntryIndex] = collectionEntry
+          } else {
+            existingEntries.push(collectionEntry)
+          }
 
           outputFiles.set(fileID, {
             buffer: Buffer.from(renderedPage),
@@ -688,6 +717,8 @@ export default async function staticbuild(options: StaticBuildOptions) {
         }
 
         case ".html": {
+          const layouts = getTemplates(options.inputDirectory, "_layouts")
+
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
           const [renderedPage] = renderHTMLPage(
             reloader,
@@ -726,6 +757,10 @@ export default async function staticbuild(options: StaticBuildOptions) {
           }
 
           const html = Mustache.render(fileContents, context)
+
+          const dependencies: Set<string> = new Set()
+          collectCollectionDependencies(options.inputDirectory, fileContents, collectionNameToEntries, dependencies)
+          inputDependencies.set(absoluteFilePath, dependencies)
 
           outputFiles.set(fileID, {
             buffer: Buffer.from(html),
