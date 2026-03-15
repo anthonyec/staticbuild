@@ -2,7 +2,7 @@ import * as fs from "node:fs"
 import * as path from "node:path"
 import * as crypto from "node:crypto"
 import { HTMLElement, parse as parseHTML } from "node-html-parser"
-import Mustache, { Context, parse } from "mustache"
+import Mustache, { Context } from "mustache"
 import * as markdown from "markdown-wasm"
 
 import { assert } from "./assert"
