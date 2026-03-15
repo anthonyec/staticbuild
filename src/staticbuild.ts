@@ -52,6 +52,8 @@ interface StaticBuildOptions {
   watch?: boolean
   dryRun?: boolean
   ignoredPaths?: string[]
+
+  baseURL: string
 }
 
 type WillMutate<T> = T
@@ -363,7 +365,7 @@ function renderHTMLPage(
 
   const context: Context = {
     site: {
-      url: "", // @TODO: Implement.
+      url: options.baseURL,
     },
     page: {
       title: "",
@@ -525,12 +527,11 @@ function renderHTMLPage(
 }
 
 export default async function staticbuild(options: StaticBuildOptions) {
+  const reloader = createReloader()
+
   const inputDependencies: InputDependencies = new Map()
   const outputFiles: OutputFiles = new Map()
-
   const collectionNameToEntries: CollectionEntries = {}
-
-  const reloader = createReloader()
 
   // @NOCHECKIN
   options.ignoredPaths = ["./v/", "./_layouts", "./_partials", "./assets"]
@@ -632,34 +633,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
             buffer: Buffer.from(renderedPage),
             outputPath: path.join(options.outputDirectory, collectionEntry.path, "index.html"),
           })
-
-          break
-        }
-
-        case ".xml": {
-          const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
-          const context: Context = {
-            site: {
-              url: "", // @TODO: Implement.
-            },
-            page: {
-              title: "",
-              date: null,
-              content: "",
-              data: {},
-            },
-            collection: collectionNameToEntries,
-            fn: TEMPLATE_FUNCTIONS,
-            attributes: {},
-          }
-
-          const html = Mustache.render(fileContents, context)
-
-          outputFiles.set(fileID, {
-            buffer: Buffer.from(html),
-            outputPath: path.join(options.outputDirectory, relativeFilePath),
-          })
-
           break
         }
 
@@ -680,7 +653,33 @@ export default async function staticbuild(options: StaticBuildOptions) {
             buffer: Buffer.from(renderedPage),
             outputPath: path.join(options.outputDirectory, relativeFilePath),
           })
+          break
+        }
 
+        case ".txt":
+        case ".xml": {
+          const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
+          const context: Context = {
+            site: {
+              url: options.baseURL,
+            },
+            page: {
+              title: "",
+              date: null,
+              content: "",
+              data: {},
+            },
+            collection: collectionNameToEntries,
+            fn: TEMPLATE_FUNCTIONS,
+            attributes: {},
+          }
+
+          const html = Mustache.render(fileContents, context)
+
+          outputFiles.set(fileID, {
+            buffer: Buffer.from(html),
+            outputPath: path.join(options.outputDirectory, relativeFilePath),
+          })
           break
         }
 

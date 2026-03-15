@@ -8,6 +8,7 @@ import { staticbuild } from "."
 interface Args {
   watch?: boolean
   dryRun?: boolean
+  port?: string
 }
 
 const ERROR_CODE = {
@@ -16,19 +17,21 @@ const ERROR_CODE = {
   FAILED_T0_READ_LOCAL_FILE: 11,
 }
 
-const DEFAULT_ARGS: Args = {
+const DEFAULT_ARGS: Required<Args> = {
   watch: false,
   dryRun: false,
+  port: "8082",
 }
 
 function logUsage() {
-  stdout.write(`Usage: staticbuild <inputDirectory> <outputDirectory> [--watch, --dry-run]\n`)
+  stdout.write(`Usage: staticbuild <inputDirectory> <outputDirectory> [--watch, --dry-run, --port]\n`)
 
   stdout.write(`\nArguments:\n`)
   stdout.write(`<inputDirectory>    Path to directory containing content.\n`)
   stdout.write(`<outputDirectory>   Path to directory for built site assets.\n`)
   stdout.write(`--watch, -w         Watch the input directory and rebuild if there are changes.\n`)
   stdout.write(`--dry-run           Prevent writing files to disk, instead logging the file list out.\n`)
+  stdout.write(`--port, -p          The expected port the site will be served from.\n`)
 }
 
 async function main() {
@@ -54,11 +57,18 @@ async function main() {
         mem["dryRun"] = true
       }
 
+      if (arg.startsWith("--port") || arg.startsWith("-p")) {
+        const splitValue = arg.split("=")
+
+        if (splitValue.length === 2) {
+          mem["port"] = splitValue[1].trim()
+        }
+      }
+
       return mem
     },
     { ...DEFAULT_ARGS },
   )
-
   // Check that the first argument is a path and not a command.
   if (!inputDirectory) {
     stdout.write(`Error: Missing input directory.\n`)
@@ -90,10 +100,15 @@ async function main() {
     fs.mkdirSync(outputDirectory)
   }
 
+  const baseURL =
+    (process.env.context === "production" ? process.env.URL : process.env.DEPLOY_PRIME_URL) ||
+    `http://localhost:${options?.port || DEFAULT_ARGS.port}`
+
   await staticbuild({
     inputDirectory: path.join(process.cwd(), inputDirectory),
     outputDirectory: path.join(process.cwd(), outputDirectory),
     configPath: path.join(process.cwd(), ".staticbuild"),
+    baseURL,
     ...options,
   })
 }
