@@ -772,6 +772,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
     console.timeEnd("Write")
 
+    console.log(`Count: ${outputFiles.size} file(s)`)
     console.log(`Done (${new Date()})`)
   }
 
