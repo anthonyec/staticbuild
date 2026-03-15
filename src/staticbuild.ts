@@ -56,6 +56,11 @@ interface StaticBuildOptions {
   baseURL: string
 }
 
+type UserConfig = {
+  redirects?: Record<string, string>
+  copies?: string[]
+}
+
 type WillMutate<T> = T
 
 type FilePath = string
@@ -123,6 +128,11 @@ function isExternalFile(value: unknown): value is ExternalOutputFile {
 
 function hash(value: string): string {
   return crypto.createHash("md5").update(value).digest("hex")
+}
+
+function requireUncached<T>(module: string): T {
+  delete require.cache[require.resolve(module)]
+  return require(module)
 }
 
 function resolveToAbsoluteInputPath(currentDirectory: string, value: string): string | undefined {
@@ -602,8 +612,48 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
       const collectionEntry = getCollectionEntryFromPath(relativeFilePath)
       const fileExtension = path.extname(absoluteFilePath)
+      const fileBasename = path.basename(absoluteFilePath)
 
       switch (fileExtension) {
+        case ".js": {
+          if (fileBasename === "_config.js") {
+            const userConfig = (requireUncached<UserConfig>(absoluteFilePath) ?? {}) as UserConfig
+
+            for (const [from, to] of Object.entries(userConfig.redirects || {})) {
+              const fileContents = `<link href="${to}" rel="canonical"><meta http-equiv="refresh" content="0;url=${to}"/>This page has moved. <a href="${to}">Click here if not redirected automatically.</a>`
+              const outputPath = path.join(options.outputDirectory, from + ".html")
+              const fileID = hash(outputPath)
+
+              outputFiles.set(fileID, {
+                buffer: Buffer.from(fileContents),
+                outputPath,
+              })
+            }
+
+            for (const relativeInputPath of userConfig.copies || []) {
+              const absoluteInputPath = path.join(options.inputDirectory, relativeInputPath)
+
+              if (fs.statSync(absoluteInputPath).isDirectory()) {
+                for (const file of scanDirectory(absoluteInputPath)) {
+                  if (file.isDirectory) continue
+
+                  outputFiles.set(file.path, {
+                    inputPath: file.path,
+                    outputPath: path.join(options.outputDirectory, path.relative(options.inputDirectory, file.path)),
+                  })
+                }
+              } else {
+                outputFiles.set(fileID, {
+                  inputPath: path.join(options.inputDirectory, relativeInputPath),
+                  outputPath: path.join(options.outputDirectory, relativeInputPath),
+                })
+              }
+            }
+
+            break
+          }
+        }
+
         case ".md": {
           if (!collectionEntry) continue
 
