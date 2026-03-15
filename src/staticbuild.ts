@@ -135,8 +135,9 @@ function requireUncached<T>(module: string): T {
   return require(module)
 }
 
-function resolveToAbsoluteInputPath(currentDirectory: string, value: string): string | undefined {
+function resolveToAbsoluteInputPath(currentDirectory: string, value: unknown): string | undefined {
   if (!value) return
+  if (typeof value !== "string") return
   if (!value.includes("/")) return
   if (value.startsWith("http")) return
 
