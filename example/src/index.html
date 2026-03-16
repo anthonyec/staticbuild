@@ -1,0 +1,34 @@
+<sb:include src="./_partials/header.html"/>
+<sb:include src="./_partials/nav.html"/>
+
+<style>
+  * {
+    transform-origin: center;
+  }
+
+  h1 {
+    color: red
+  }
+</style>
+
+<script>
+  const h1 = document.querySelector("h1")
+  h1.addEventListener("click", () => h1.setAttribute("style", "transform: rotate(3deg)"))
+</script>
+
+<script>
+  const img = document.querySelector("img")
+  img.addEventListener("click", () => img.setAttribute("style", "transform: rotate(-3deg)"))
+</script>
+
+<h1>Welcome to my Website!</h1>
+
+<sb:include src="./_partials/button.html" label="Custom label!"/>
+
+<sb:include src="./_partials/button.html" label="Another button!">
+  <button>Hello</button>
+</sb:include>
+
+<sb:include src="./_partials/button.html" label="Another button!"></sb:include>
+
+<sb:include src="./_partials/footer.html"/>
