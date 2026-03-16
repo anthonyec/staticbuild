@@ -5,7 +5,7 @@ import { HTMLElement, parse as parseHTML } from "node-html-parser"
 import Mustache, { Context } from "mustache"
 import * as markdown from "markdown-wasm"
 
-import { assert } from "./assert"
+import { assert, assertNever } from "./assert"
 import { scanDirectory } from "./fs"
 import { watcher } from "./watcher"
 import { createReloader, Reloader } from "./reloader"
@@ -224,11 +224,59 @@ function absoluteInputPathToRelativeOutputPath(inputDirectory: string, absoluteI
   return path.join("/", relativeInputPath)
 }
 
+function concatAssetContents(
+  outputDirectory: string,
+  type: "css" | "js",
+  contents: Set<string>,
+  document: WillMutate<HTMLElement>,
+  files: WillMutate<OutputFiles>,
+) {
+  let concatenatedContents = ""
+
+  for (const content of contents) {
+    switch (type) {
+      case "css":
+        concatenatedContents += content + "\n"
+        continue
+
+      case "js":
+        concatenatedContents += `(function() {${content}})()` + "\n"
+        continue
+
+      default:
+        assertNever(type, "Expected type to be handled")
+    }
+  }
+
+  if (!concatenatedContents.trim()) return
+
+  const fileID = hash(concatenatedContents)
+  const relativeOutputPath = path.join("/", "assets", type, fileID + "." + type)
+
+  switch (type) {
+    case "css":
+      document.append(`<link rel="stylesheet" href="${relativeOutputPath}"/ >`)
+      break
+
+    case "js":
+      document.append(`<script src="${relativeOutputPath}" async defer></script>`)
+      break
+
+    default:
+      assertNever(type, "Expected type to be handled")
+  }
+
+  files.set(fileID, {
+    buffer: Buffer.from(concatenatedContents),
+    outputPath: path.join(outputDirectory, relativeOutputPath),
+  })
+}
+
 function collectAssetsFromPageData(
   currentDirectory: string,
   inputDirectory: string,
   outputDirectory: string,
-  files: WillMutate<OutputFiles>,
+  outputFiles: WillMutate<OutputFiles>,
   dependencies: WillMutate<Dependencies>,
   pageData: PageData,
 ) {
@@ -241,7 +289,7 @@ function collectAssetsFromPageData(
     dependencies.add(absoluteInputPath)
 
     const fileID = hash(absoluteInputPath)
-    files.set(fileID, {
+    outputFiles.set(fileID, {
       inputPath: absoluteInputPath,
       outputPath: path.join(outputDirectory, relativeOutputPath),
     })
@@ -251,10 +299,13 @@ function collectAssetsFromPageData(
 function collectAssetsFromDocument(
   inputDirectory: string,
   outputDirectory: string,
-  files: WillMutate<OutputFiles>,
+  outputFiles: WillMutate<OutputFiles>,
   dependencies: WillMutate<Dependencies>,
   document: WillMutate<HTMLElement>,
 ) {
+  const styles: Set<string> = new Set()
+  const scripts: Set<string> = new Set()
+
   // @TODO(SPEED): No need to go over paths again and check since when resolving
   // we could keep a list and reuse it here. IT will be a big speed improvement
   // if this is done! ~600ms to ~130ms!
@@ -283,21 +334,41 @@ function collectAssetsFromDocument(
       }
 
       const relativeOutputPath = absoluteInputPathToRelativeOutputPath(inputDirectory, absoluteInputPath)
-      element.setAttribute(name, path.join("/", relativeOutputPath))
       dependencies.add(absoluteInputPath)
 
-      const fileID = hash(absoluteInputPath)
-      files.set(fileID, {
-        inputPath: absoluteInputPath,
-        outputPath: path.join(outputDirectory, relativeOutputPath),
-      })
+      const fileExtension = path.extname(absoluteInputPath)
+
+      switch (fileExtension) {
+        case ".css":
+          styles.add(fs.readFileSync(absoluteInputPath, "utf8"))
+          element.remove()
+          continue
+
+        case ".js":
+          scripts.add(fs.readFileSync(absoluteInputPath, "utf8"))
+          element.remove()
+          continue
+
+        default:
+          element.setAttribute(name, path.join("/", relativeOutputPath))
+
+          const fileID = hash(absoluteInputPath)
+          outputFiles.set(fileID, {
+            inputPath: absoluteInputPath,
+            outputPath: path.join(outputDirectory, relativeOutputPath),
+          })
+          continue
+      }
     }
   }
+
+  concatAssetContents(outputDirectory, "css", styles, document, outputFiles)
+  concatAssetContents(outputDirectory, "js", scripts, document, outputFiles)
 }
 
 function collectInlineCodeFromDocument(
   outputDirectory: string,
-  files: WillMutate<OutputFiles>,
+  outputFiles: WillMutate<OutputFiles>,
   document: WillMutate<HTMLElement>,
 ) {
   const styles: Set<string> = new Set()
@@ -322,40 +393,8 @@ function collectInlineCodeFromDocument(
     }
   }
 
-  let styleContents = ""
-  let scriptContents = ""
-
-  for (const style of styles) {
-    styleContents += style + "\n"
-  }
-
-  for (const script of scripts) {
-    scriptContents += `(function() {${script}})()` + "\n"
-  }
-
-  if (styleContents.trim()) {
-    const fileID = hash(styleContents)
-    const relativeOutputPath = path.join("/", "assets", "css", fileID + ".css")
-
-    files.set(fileID, {
-      buffer: Buffer.from(styleContents),
-      outputPath: path.join(outputDirectory, relativeOutputPath),
-    })
-
-    document.append(`<link rel="stylesheet" href="${relativeOutputPath}"/ >`)
-  }
-
-  if (scriptContents.trim()) {
-    const fileID = hash(scriptContents)
-    const relativeOutputPath = path.join("/", "assets", "js", fileID + ".js")
-
-    files.set(fileID, {
-      buffer: Buffer.from(scriptContents),
-      outputPath: path.join(outputDirectory, relativeOutputPath),
-    })
-
-    document.append(`<script src="${relativeOutputPath}" async defer></script>`)
-  }
+  concatAssetContents(outputDirectory, "css", styles, document, outputFiles)
+  concatAssetContents(outputDirectory, "js", scripts, document, outputFiles)
 }
 
 function absoluteToRelativePath(inputDirectory: string, absolutePath: string): string {
@@ -642,8 +681,8 @@ export default async function staticbuild(options: StaticBuildOptions) {
             for (const [from, to] of Object.entries(userConfig.redirects || {})) {
               const fileContents = `<link href="${to}" rel="canonical"><meta http-equiv="refresh" content="0;url=${to}"/>This page has moved. <a href="${to}">Click here if not redirected automatically.</a>`
               const outputPath = path.join(options.outputDirectory, from + ".html")
-              const fileID = hash(outputPath)
 
+              const fileID = hash(outputPath)
               outputFiles.set(fileID, {
                 buffer: Buffer.from(fileContents),
                 outputPath,
@@ -802,6 +841,11 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
         console.log(" ")
       } else {
+        assert(
+          file.outputPath.startsWith(options.outputDirectory),
+          `Expected file to be placed inside output directory:\n Output directory: ${options.outputDirectory}\n Actual output path: ${file.outputPath}`,
+        )
+
         fs.mkdirSync(path.dirname(file.outputPath), { recursive: true })
         fs.writeFileSync(file.outputPath, buffer)
       }
