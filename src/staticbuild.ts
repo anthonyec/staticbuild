@@ -563,13 +563,14 @@ export default async function staticbuild(options: StaticBuildOptions) {
   const reloader = createReloader()
 
   const inputDependencies: InputDependencies = new Map()
-  const outputFiles: OutputFiles = new Map()
   const collectionNameToEntries: CollectionEntries = {}
 
   // @NOCHECKIN
   options.ignoredPaths = ["./v/", "./_layouts", "./_partials", "./assets"]
 
   const build = async (changedFilePaths: string[] = []) => {
+    const outputFiles: OutputFiles = new Map()
+
     console.time("Built")
 
     if (changedFilePaths.length == 0) {
