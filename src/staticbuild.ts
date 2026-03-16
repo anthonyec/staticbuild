@@ -240,7 +240,7 @@ function concatAssetContents(
         continue
 
       case "js":
-        concatenatedContents += `(function() {${content}})()` + "\n"
+        concatenatedContents += `(function() {${content}})();` + "\n"
         continue
 
       default:
@@ -414,7 +414,7 @@ function collectCollectionDependencies(
 
     const [, collectionName] = argument.split(".")
 
-    for (const entry of collectionNameToEntries[collectionName]) {
+    for (const entry of collectionNameToEntries[collectionName] || []) {
       dependencies.add(path.join(inputDirectory, entry.relativeInputPath))
     }
   }
@@ -525,6 +525,7 @@ function renderHTMLPage(
       ...context,
       attributes: {
         ...element.attributes,
+        uid: hash(src + includeStack.length),
         children: element.innerHTML,
       },
     })
@@ -771,9 +772,15 @@ export default async function staticbuild(options: StaticBuildOptions) {
             layouts,
           )
 
+          const collectionEntry = getCollectionEntryFromPath(relativeFilePath)
+
+          const outputPath = collectionEntry
+            ? path.join(options.outputDirectory, collectionEntry.path, path.basename(absoluteFilePath))
+            : path.join(options.outputDirectory, relativeFilePath)
+
           outputFiles.set(fileID, {
             buffer: Buffer.from(renderedPage),
-            outputPath: path.join(options.outputDirectory, relativeFilePath),
+            outputPath,
           })
           break
         }
