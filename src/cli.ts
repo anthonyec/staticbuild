@@ -9,6 +9,7 @@ interface Args {
   watch?: boolean
   dryRun?: boolean
   port?: string
+  check?: boolean
 }
 
 const ERROR_CODE = {
@@ -21,10 +22,11 @@ const DEFAULT_ARGS: Required<Args> = {
   watch: false,
   dryRun: false,
   port: "8082",
+  check: false,
 }
 
 function logUsage() {
-  stdout.write(`Usage: staticbuild <inputDirectory> <outputDirectory> [--watch, --dry-run, --port]\n`)
+  stdout.write(`Usage: staticbuild <inputDirectory> <outputDirectory> [--watch, --dry-run, --port, --check]\n`)
 
   stdout.write(`\nArguments:\n`)
   stdout.write(`<inputDirectory>    Path to directory containing content.\n`)
@@ -32,6 +34,7 @@ function logUsage() {
   stdout.write(`--watch, -w         Watch the input directory and rebuild if there are changes.\n`)
   stdout.write(`--dry-run           Prevent writing files to disk, instead logging the file list out.\n`)
   stdout.write(`--port, -p          The expected port the site will be served from.\n`)
+  stdout.write(`--check, -c         Perform a dead link check on the output files.\n`)
 }
 
 async function main() {
@@ -55,6 +58,10 @@ async function main() {
 
       if (arg === "--dry-run") {
         mem["dryRun"] = true
+      }
+
+      if (arg === "--check" || arg === "-c") {
+        mem["check"] = true
       }
 
       if (arg.startsWith("--port") || arg.startsWith("-p")) {

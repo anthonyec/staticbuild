@@ -51,8 +51,8 @@ interface StaticBuildOptions {
   /** Watch files in the `outputDirectory` and build when they change */
   watch?: boolean
   dryRun?: boolean
+  check?: boolean
   ignoredPaths?: string[]
-
   baseURL: string
 }
 
@@ -496,10 +496,6 @@ function renderHTMLPage(
 
   // Parse the HTML ready for modification.
   let document = parseHTML(html)
-
-  // Before assets are collected or modified, change all the source paths from
-  // relative to absolute. This makes it easier to deal with for both developer
-  // and processing.
   resolveAttributesToAbsoluteInputPaths(currentDirectory, document)
 
   const includeStack = Array.from(document.querySelectorAll("sb\\:include"))
@@ -557,7 +553,7 @@ function renderHTMLPage(
   for (const element of document.querySelectorAll("[sb\\:selector]")) {
     const selector = element.getAttribute("sb:selector")
     if (!selector) continue
-    if ((selector.includes(":hover"), selector.includes(":focus"))) continue
+    if (selector.includes(":hover") || selector.includes(":focus")) continue
 
     if (!document.querySelector(selector)) {
       element.remove()
@@ -862,12 +858,43 @@ export default async function staticbuild(options: StaticBuildOptions) {
           `Expected file to be placed inside output directory:\n Output directory: ${options.outputDirectory}\n Actual output path: ${file.outputPath}`,
         )
 
+        // Small form of optimization. Don't write file if there no changes.
+        if (fs.existsSync(file.outputPath)) {
+          if (Buffer.compare(buffer, fs.readFileSync(file.outputPath)) === 0) continue
+        }
+
         fs.mkdirSync(path.dirname(file.outputPath), { recursive: true })
         fs.writeFileSync(file.outputPath, buffer)
       }
     }
 
     console.timeEnd("Write")
+
+    if (options.check) {
+      console.log("Check")
+
+      for (const [_, file] of outputFiles) {
+        if (!file.outputPath.endsWith(".html")) continue
+
+        const html = fs.readFileSync(file.outputPath, "utf8")
+        const document = parseHTML(html)
+
+        for (const element of document.querySelectorAll("a[href]")) {
+          const href = element.getAttribute("href")
+          if (!href?.startsWith("http")) continue
+
+          try {
+            const response = await fetch(href, { signal: AbortSignal.timeout(5000) })
+
+            if (response.status < 200 || response.status > 299) {
+              console.log(`Response ${response.status}: ${href}`)
+            }
+          } catch (err: unknown) {
+            console.log(`Timeout: ${href}`)
+          }
+        }
+      }
+    }
 
     console.log(`Count: ${outputFiles.size} file(s)`)
     console.log(`Done (${new Date()})`)
