@@ -327,29 +327,34 @@ function collectAssetsFromDocument(
         continue
       }
 
-      if (path.extname(absoluteInputPath) && element.hasAttribute("sb:inline")) {
-        const svg = fs.readFileSync(absoluteInputPath, "utf8")
-        element.replaceWith(svg)
-        continue
-      }
-
       const relativeOutputPath = absoluteInputPathToRelativeOutputPath(inputDirectory, absoluteInputPath)
-      dependencies.add(absoluteInputPath)
-
       const fileExtension = path.extname(absoluteInputPath)
 
+      // Make sure dependency is added before processing so that there is always
+      // a link to the original input file, even if for instance, the file
+      // gets inlined and isn't referenced via a URL.
+      dependencies.add(absoluteInputPath)
+
       switch (fileExtension) {
-        case ".css":
+        case ".css": {
           styles.add(fs.readFileSync(absoluteInputPath, "utf8"))
           element.remove()
           continue
+        }
 
-        case ".js":
+        case ".js": {
           scripts.add(fs.readFileSync(absoluteInputPath, "utf8"))
           element.remove()
           continue
+        }
 
-        default:
+        default: {
+          if (fileExtension === ".svg" && element.hasAttribute("sb:inline")) {
+            const svg = fs.readFileSync(absoluteInputPath, "utf8")
+            element.replaceWith(svg)
+            continue
+          }
+
           element.setAttribute(name, path.join("/", relativeOutputPath))
 
           const fileID = hash(absoluteInputPath)
@@ -358,6 +363,7 @@ function collectAssetsFromDocument(
             outputPath: path.join(outputDirectory, relativeOutputPath),
           })
           continue
+        }
       }
     }
   }
@@ -609,11 +615,13 @@ export default async function staticbuild(options: StaticBuildOptions) {
   options.ignoredPaths = ["./v/", "./_layouts", "./_partials", "./assets"]
 
   const build = async (changedFilePaths: string[] = []) => {
+    const isCleanBuild = changedFilePaths.length === 0
+
     const outputFiles: OutputFiles = new Map()
 
     console.time("Built")
 
-    if (changedFilePaths.length == 0) {
+    if (isCleanBuild) {
       for await (const file of scanDirectory(options.inputDirectory)) {
         changedFilePaths.push(file.path)
       }
@@ -661,9 +669,11 @@ export default async function staticbuild(options: StaticBuildOptions) {
         continue
       }
 
-      for (const [parent, dependencies] of inputDependencies) {
-        if (dependencies.has(absoluteFilePath)) {
-          filePathProcessStack.push(parent)
+      if (!isCleanBuild) {
+        for (const [parent, dependencies] of inputDependencies) {
+          if (dependencies.has(absoluteFilePath)) {
+            filePathProcessStack.push(parent)
+          }
         }
       }
 
