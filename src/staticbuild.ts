@@ -436,8 +436,6 @@ function renderHTMLPage(
   outputFiles: WillMutate<OutputFiles>,
   layouts: Templates,
 ): [renderedPage: string, page: Context["page"]] {
-  const currentDirectory = path.dirname(absoluteFilePath)
-
   const dependencies: Set<string> = new Set()
 
   const context: Context = {
@@ -481,6 +479,7 @@ function renderHTMLPage(
   // Setup page template if one exists.
   context.page.content = preTemplateDocument.toString()
 
+  const currentDirectory = path.dirname(absoluteFilePath)
   const relativeInputDirectory = path.relative(options.inputDirectory, currentDirectory)
   const collectionEntry = getCollectionEntryFromPath(relativeInputDirectory)
 
