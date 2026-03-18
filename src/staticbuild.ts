@@ -105,6 +105,7 @@ type MustacheFunction = () => (text: string, subRender: (template: string) => st
 type Context = {
   site: {
     url: string
+    date: Date
   }
   page: {
     title: string
@@ -441,6 +442,7 @@ function renderHTMLPage(
   const context: Context = {
     site: {
       url: options.baseURL,
+      date: new Date(),
     },
     page: {
       title: "",
@@ -796,6 +798,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
           const context: Context = {
             site: {
               url: options.baseURL,
+              date: new Date(),
             },
             page: {
               title: "",
