@@ -35,6 +35,12 @@ const TEMPLATE_FUNCTIONS: Context["fn"] = {
     return date.toUTCString()
   },
 
+  dateToYear: () => (text, render) => {
+    const renderedDate = render(text)
+    const date = new Date(renderedDate)
+    return date.getFullYear().toString()
+  },
+
   removeH1: () => (text, render) => {
     const renderedText = render(text)
     return renderedText.replace(/<h1>.*(?:<a.*>.*<\/a>).*<\/h1>/g, "")
