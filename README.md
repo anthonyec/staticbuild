@@ -12,6 +12,7 @@
 I'm currently using this on the following things:
 
 - [anthonyec/website](https://github.com/anthonyec/website/tree/move-to-staticbuild-rewrite)
+- [anthonyec/gnorman](https://github.com/anthonyec/gnorman)
 - [anthonyec/archive](https://github.com/anthonyec/archive)
 
 ## Features
