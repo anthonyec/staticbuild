@@ -1,7 +1,7 @@
 # staticbuild
 
 <div align="center">
-  <img src="logo.png" width="420" alt="Bricks" >
+  <img src="https://github.com/anthonyec/staticbuild/raw/main/logo.png" width="420" alt="Bricks" >
   <br><br>
   A static site generator that isn't for you!
   <br><br>
