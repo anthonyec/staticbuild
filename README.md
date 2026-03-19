@@ -1,27 +1,28 @@
 # staticbuild
 
 <div align="center">
-  <img src="https://github.com/anthonyec/staticbuild/raw/main/logo.png" width="420" alt="Bricks" >
+  <img src="https://github.com/anthonyec/staticbuild/raw/main/logo.png" width="320" alt="Bricks" >
   <br><br>
   A static site generator that isn't for you!
   <br><br>
 </div>
 
-`staticbuild` is a static site generator with minimum support for anything other than my own websites.
+`staticbuild` is a fast static file website generator with minimum support for anything other than my own stuff.
 
-I'm currently using this on the following things:
+I'm currently using this on the following projects:
 
-- [anthonyec/website](https://github.com/anthonyec/website/tree/move-to-staticbuild-rewrite)
+- [anthonyec/website](https://github.com/anthonyec/website)
 - [anthonyec/gnorman](https://github.com/anthonyec/gnorman)
 - [anthonyec/archive](https://github.com/anthonyec/archive)
 
 ## Features
 
-- No configuration
-- Good and nice handling of assets
-- Automatic page reloading when files change
+- Fast and lightweight
+- No need for configuration
+- Good and nice asset handling
+- Automatic page reloading
 - Markdown files [display nicely](https://github.com/anthonyec/website/blob/main/src/_posts/2022-03-30-one-year-of-salad-room/index.md) in GitHub, with images and no ugly front matter table
-- Fun features like [buildtime](#sbbuildtime) scripting so that I enjoy my life
+- Enjoyable to use, with fun features like [buildtime](#sbbuildtime) scripting
 
 ## Why
 
@@ -34,7 +35,7 @@ Out of frustration I built my own static site generator which is faster, simpler
 ### Building a site
 
 ```sh
-staticbuild <inputDirectory> <outputDirectory> [--watch, --dry-run]
+staticbuild <inputDirectory> <outputDirectory> [--watch, --dry-run, --check]
 ```
 
 ### Viewing the site
@@ -219,3 +220,7 @@ Once defined, the data can then be accessed using Mustache in the same HTML page
 ```
 
 Build time data will be parsed before any parsing of the HTML page has happened.
+
+## AI Usage
+
+AI training be gone! I do not give you permission to train on this codebase.
