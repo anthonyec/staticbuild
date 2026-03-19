@@ -124,7 +124,7 @@ type Context = {
   attributes: { [name: string]: string }
 }
 
-type Templates = Map<string, string>
+type Templates = Map<string, [inputPath: string, html: string]>
 
 function isMemoryFile(value: unknown): value is MemoryOutputFile {
   return value != null && typeof value == "object" && "buffer" in value
@@ -181,7 +181,7 @@ function getTemplates(inputDirectory: string, directoryName: string): Templates 
     const document = parseHTML(fileContents)
     resolveAttributesToAbsoluteInputPaths(templatesDirectory, document)
 
-    templates.set(file.name, document.toString())
+    templates.set(file.name, [file.path, document.toString()])
   }
 
   return templates
@@ -495,8 +495,12 @@ function renderHTMLPage(
     context.page.date = collectionEntry?.date
   }
 
-  const layout = collectionEntry && layouts && layouts.get(collectionEntry.collection)
-  const template = layout ?? preTemplateDocument.toString()
+  const [layoutInputPath, layoutHtml] = collectionEntry && layouts ? layouts.get(collectionEntry.collection) || [] : []
+  const template = layoutHtml ?? preTemplateDocument.toString()
+
+  if (layoutInputPath) {
+    dependencies.add(layoutInputPath)
+  }
 
   // Render template.
   const html = Mustache.render(template, context)
