@@ -17,8 +17,9 @@
     "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
-    "build": "tsc",
-    "debug": "tsc --watch",
+    "build": "npm run copy && tsc",
+    "debug": "npm run copy && tsc --watch",
+    "copy": "node ./scripts/copy_partials.mjs",
     "test": "echo 'No tests yet, so everything is a-OK!'",
     "format": "prettier --loglevel warn --write \"**/*.{md,ts}\""
   },

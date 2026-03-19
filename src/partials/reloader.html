@@ -1,0 +1,25 @@
+<script defer sb:ignore>
+  // This script was added by `staticbuild` in "watch" mode to enable 
+  // auto-reloading when files change.
+  //
+  // Run `staticbuild` once without "watch" mode to exclude this script.
+  (function() {
+    const client = new EventSource('http://localhost:${port}/');
+
+    client.onopen = () => {
+      console.log('Reloader connected to staticbuild');
+    };
+
+    client.onerror = (error) => {
+      console.error('Reloader failed to connect', error);
+    };
+
+    client.addEventListener('reload', () => {
+      window.location.reload();
+    });
+
+    client.addEventListener('err', (err) => {
+      console.log('ERROR', err);
+    });
+  })();
+</script>

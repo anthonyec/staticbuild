@@ -389,6 +389,7 @@ function collectInlineCodeFromDocument(
 
   for (const element of document.querySelectorAll("style, script:not([src])")) {
     if (element.hasAttribute("sb:buildtime")) continue
+    if (element.hasAttribute("sb:ignore")) continue
 
     const textContent = element.textContent
     element.remove()
@@ -510,6 +511,7 @@ function renderHTMLPage(
   let document = parseHTML(html)
   resolveAttributesToAbsoluteInputPaths(currentDirectory, document)
 
+  // Import all the include tags recursively.
   const includeStack = Array.from(document.querySelectorAll("sb\\:include"))
 
   while (includeStack.length) {
@@ -530,7 +532,6 @@ function renderHTMLPage(
     }
 
     const includeContents = fs.readFileSync(src, "utf8")
-
     const includeDocument = parseHTML(includeContents)
     resolveAttributesToAbsoluteInputPaths(path.dirname(src), includeDocument)
 
