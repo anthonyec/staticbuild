@@ -30,6 +30,10 @@ export function createReloader(): Reloader {
       response.setHeader("Content-Type", "text/event-stream")
       response.setHeader("access-control-allow-origin", "*")
 
+      for (const listener of events.listeners("reload")) {
+        events.off("reload", listener)
+      }
+
       events.once("reload", () => {
         response.write(event("reload"))
       })
