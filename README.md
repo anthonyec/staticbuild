@@ -167,7 +167,7 @@ I don't like this, but I currently use it skip `<h1>` tags on certain pages bein
 
 #### `sb:buildtime`
 
-Arbitrary JavaScript can be run at build time! You heard that correct.
+Arbitrary JavaScript can be executed at build time! You heard that correct.
 
 Since the Mustache template language is logic-less, this attribute provides the full power of a scripting language in a template.
 
