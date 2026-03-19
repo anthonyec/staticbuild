@@ -464,6 +464,12 @@ function renderHTMLPage(
 
   const preTemplateDocument = parseHTML(fileContents)
 
+  if (options.watch) {
+    preTemplateDocument.append(
+      `<sb:include src="./node_modules/@anthonyec/staticbuild/dist/partials/reloader.html" port="${reloader.getPort()}" />`,
+    )
+  }
+
   // Find the page title.
   const titleElement = preTemplateDocument.querySelector("title")
   const headingElement = preTemplateDocument.querySelector("h1:not([sb\\:ignore])")
@@ -604,10 +610,6 @@ function renderHTMLPage(
     }
   }
 
-  if (options.watch) {
-    document.append(reloader.getScript())
-  }
-
   inputDependencies.set(absoluteFilePath, dependencies)
 
   return [document.toString(), context.page]
@@ -615,6 +617,12 @@ function renderHTMLPage(
 
 export default async function staticbuild(options: StaticBuildOptions) {
   const reloader = createReloader()
+
+  if (options.watch) {
+    await reloader.start().catch((err) => {
+      throw Error(err)
+    })
+  }
 
   const inputDependencies: InputDependencies = new Map()
   const collectionNameToEntries: CollectionEntries = {}
@@ -919,8 +927,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
   if (options.watch) {
     console.log("---")
     console.log("👀 Watching for changes...")
-
-    reloader.start()
 
     await watcher(options.inputDirectory, async (changedFilePaths) => {
       console.log("---")

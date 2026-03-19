@@ -4,7 +4,7 @@
   //
   // Run `staticbuild` once without "watch" mode to exclude this script.
   (function() {
-    const client = new EventSource('http://localhost:${port}/');
+    const client = new EventSource('http://localhost:{{attributes.port}}/');
 
     client.onopen = () => {
       console.log('Reloader connected to staticbuild');

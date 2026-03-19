@@ -1,69 +1,64 @@
 import * as http from "http"
 import { EventEmitter } from "events"
 
+const BASE_PORT = 4000
+
 export interface Reloader {
-  getScript: () => string
+  getPort: () => number
   reload: () => void
-  start: () => void
+  start: () => Promise<unknown>
 }
 
-function formatServerSideEvent(name: string, message?: string) {
+function event(name: string, message?: string) {
   return `event: ${name}\ndata: ${message}\n\n`
 }
 
-export function createReloader() {
-  let port = 4000
+export function createReloader(): Reloader {
+  let port = BASE_PORT
   const events = new EventEmitter()
 
-  function getScript(port: number) {
-    return `
-      <script defer>
-        // This script is added by staticbuild to enable auto-reloading when files change.
-        (function() {
-          const client = new EventSource('http://localhost:${port}/');
+  let ready: (value: unknown) => void | undefined
+  let error: (reason: unknown) => void | undefined
 
-          client.onopen = () => {
-            console.log('Reloader connected to staticbuild');
-          };
+  const waitForStart = new Promise((resolve, reject) => {
+    ready = resolve
+    error = reject
+  })
 
-          client.onerror = (error) => {
-            console.error('Reloader failed to connect', error);
-          };
-
-          client.addEventListener('reload', () => {
-            window.location.reload();
-          });
-
-          client.addEventListener('err', (err) => {
-            console.log('ERROR', err);
-          });
-        })();
-      </script>
-    `
-  }
-
-  function start() {
+  async function start() {
     const server = http.createServer(function (_request, response) {
       response.setHeader("Content-Type", "text/event-stream")
       response.setHeader("access-control-allow-origin", "*")
 
       events.once("reload", () => {
-        response.write(formatServerSideEvent("reload"))
+        response.write(event("reload"))
       })
     })
 
     server.once("error", (err) => {
+      server.close()
+
       if (err instanceof Error && err.code === "EADDRINUSE") {
+        if (port > BASE_PORT + 1000) {
+          return error("Failed to find a port for the reloader")
+        }
+
         port++
         start()
       }
     })
 
+    server.once("listening", () => {
+      ready(0)
+    })
+
     server.listen(port)
+
+    await waitForStart
   }
 
   return {
-    getScript: () => getScript(port),
+    getPort: () => port,
     reload: () => events.emit("reload"),
     start,
   }
