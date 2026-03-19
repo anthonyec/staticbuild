@@ -21,7 +21,6 @@ I'm currently using this on the following projects:
 - No need for configuration
 - Good and nice asset handling
 - Automatic page reloading
-- Markdown files [display nicely](https://github.com/anthonyec/website/blob/main/src/_posts/2022-03-30-one-year-of-salad-room/index.md) in GitHub, with images and no ugly front matter table
 - Enjoyable to use, with fun features like [buildtime](#sbbuildtime) scripting
 
 ## Why
