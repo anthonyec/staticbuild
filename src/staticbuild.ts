@@ -167,12 +167,10 @@ function resolveAttributesToAbsoluteInputPaths(currentDirectory: string, root: W
   }
 }
 
-function getTemplates(inputDirectory: string, directoryName: string): Templates {
-  assert(directoryName.startsWith("_"))
-
+function getLayouts(inputDirectory: string): Templates {
   const templates: Templates = new Map()
 
-  const templatesDirectory = path.join(inputDirectory, directoryName)
+  const templatesDirectory = path.join(inputDirectory, "_layouts")
   if (!fs.existsSync(templatesDirectory)) return templates
 
   for (const file of scanDirectory(templatesDirectory)) {
@@ -747,7 +745,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
           const collectionEntry = getCollectionEntryFromPath(relativeFilePath)
           if (!collectionEntry) continue
 
-          const layouts = getTemplates(options.inputDirectory, "_layouts")
+          const layouts = getLayouts(options.inputDirectory)
 
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
           const html = markdown.parse(fileContents)
@@ -784,7 +782,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
         }
 
         case ".html": {
-          const layouts = getTemplates(options.inputDirectory, "_layouts")
+          const layouts = getLayouts(options.inputDirectory)
 
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
           const [renderedPage] = renderHTMLPage(
