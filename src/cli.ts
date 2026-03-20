@@ -114,9 +114,15 @@ async function main() {
   await staticbuild({
     inputDirectory: path.join(process.cwd(), inputDirectory),
     outputDirectory: path.join(process.cwd(), outputDirectory),
-    configPath: path.join(process.cwd(), ".staticbuild"),
     baseURL,
     ...options,
+    logger: {
+      info: console.log,
+      warn: console.warn,
+      error: console.error,
+      time: console.time,
+      timeEnd: console.timeEnd,
+    },
   })
 }
 

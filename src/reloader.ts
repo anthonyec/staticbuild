@@ -9,6 +9,12 @@ export interface Reloader {
   start: () => Promise<unknown>
 }
 
+type ErrorWithCode = Error & { code: string }
+
+function isErrorWithCode(error: unknown): error is ErrorWithCode {
+  return error instanceof Error && "code" in error && typeof error.code === "string"
+}
+
 function event(name: string, message?: string) {
   return `event: ${name}\ndata: ${message}\n\n`
 }
@@ -18,11 +24,11 @@ export function createReloader(): Reloader {
   const events = new EventEmitter()
 
   let ready: (value: unknown) => void | undefined
-  let error: (reason: unknown) => void | undefined
+  let throwError: (reason: unknown) => void | undefined
 
   const waitForStart = new Promise((resolve, reject) => {
     ready = resolve
-    error = reject
+    throwError = reject
   })
 
   async function start() {
@@ -39,12 +45,12 @@ export function createReloader(): Reloader {
       })
     })
 
-    server.once("error", (err) => {
+    server.once("error", (error) => {
       server.close()
 
-      if (err instanceof Error && err.code === "EADDRINUSE") {
+      if (isErrorWithCode(error) && error.code === "EADDRINUSE") {
         if (port > BASE_PORT + 1000) {
-          return error("Failed to find a port for the reloader")
+          return throwError("Failed to find a port for the reloader")
         }
 
         port++

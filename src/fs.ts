@@ -9,22 +9,6 @@ export function requireUncached<T>(module: string): T {
   return require(module)
 }
 
-/** Returns `true` if a file exists, otherwise `false`. */
-export function checkFileExists(filePath: string) {
-  try {
-    fs.accessSync(filePath, constants.F_OK)
-    return true
-  } catch (err) {
-    if (err instanceof Error) {
-      if (err.code === "ENOENT") {
-        return false
-      }
-
-      throw new Error(err.message)
-    }
-  }
-}
-
 /** Return names of all directories found at the specified path. */
 export function getDirectoryNames(directoryPath: string): string[] {
   const entries = fs.readdirSync(directoryPath, { withFileTypes: true })
@@ -50,11 +34,15 @@ interface File {
   isEmpty: boolean
 }
 
-export function scanDirectory(targetDirectory: string, ignorePathsAndDirectories: string[] = []): File[] {
+export function scan(
+  targetDirectory: string,
+  ignorePathsAndDirectories: string[] = [],
+  options: { recursive: boolean } = { recursive: true },
+): File[] {
   // Remove `./` from ignored paths.
   const normalizedIgnorePathsAndDirectories = ignorePathsAndDirectories.map(path.normalize)
 
-  function scan(currentTargetDirectory: string) {
+  function scanDirectory(currentTargetDirectory: string) {
     const files: File[] = []
     const entries = fs.readdirSync(currentTargetDirectory, {
       withFileTypes: true,
@@ -70,7 +58,7 @@ export function scanDirectory(targetDirectory: string, ignorePathsAndDirectories
       if (IGNORED_FILES.includes(entry.name)) continue
 
       if (entry.isDirectory()) {
-        const subDirectoryFiles = scan(entryPath)
+        const subDirectoryFiles = options.recursive ? scan(entryPath) : []
         files.push(...subDirectoryFiles)
 
         const file = {
@@ -98,7 +86,7 @@ export function scanDirectory(targetDirectory: string, ignorePathsAndDirectories
     return files
   }
 
-  return scan(targetDirectory)
+  return scanDirectory(targetDirectory)
 }
 
 export function deleteFiles(filePaths: string[], expectedDirectoryToDeleteFrom: string, dryRun?: boolean) {

@@ -6,7 +6,7 @@ import Mustache, { Context } from "mustache"
 import * as markdown from "markdown-wasm"
 
 import { assert, assertNever } from "./assert"
-import { scanDirectory } from "./fs"
+import { scan } from "./fs"
 import { watcher } from "./watcher"
 import { createReloader, Reloader } from "./reloader"
 
@@ -52,14 +52,20 @@ interface StaticBuildOptions {
   inputDirectory: string
   /** Specify an output folder for the website to be built to */
   outputDirectory: string
-  /** Specify path of the website config file */
-  configPath: string
   /** Watch files in the `outputDirectory` and build when they change */
   watch?: boolean
   dryRun?: boolean
   check?: boolean
   ignoredPaths?: string[]
-  baseURL: string
+  baseURL?: string
+
+  logger?: {
+    info: (...message: unknown[]) => void
+    warn: (...message: unknown[]) => void
+    error: (...message: unknown[]) => void
+    time: (name: string) => void
+    timeEnd: (name: string) => void
+  }
 }
 
 type UserConfig = {
@@ -173,7 +179,7 @@ function getLayouts(inputDirectory: string): Templates {
   const templatesDirectory = path.join(inputDirectory, "_layouts")
   if (!fs.existsSync(templatesDirectory)) return templates
 
-  for (const file of scanDirectory(templatesDirectory)) {
+  for (const file of scan(templatesDirectory)) {
     const fileContents = fs.readFileSync(file.path, "utf8")
 
     const document = parseHTML(fileContents)
@@ -307,6 +313,7 @@ function collectAssetsFromDocument(
   outputFiles: WillMutate<OutputFiles>,
   dependencies: WillMutate<Dependencies>,
   document: WillMutate<HTMLElement>,
+  logger: StaticBuildOptions["logger"],
 ) {
   const styles: Set<string> = new Set()
   const scripts: Set<string> = new Set()
@@ -323,12 +330,12 @@ function collectAssetsFromDocument(
       const absoluteInputPath = value
 
       if (!fs.existsSync(absoluteInputPath)) {
-        console.error(`Could not find asset: ${absoluteInputPath}`)
+        logger?.error(`Could not find asset: ${absoluteInputPath}`)
         continue
       }
 
       if (fs.statSync(absoluteInputPath).isDirectory()) {
-        console.error(`Skipping asset, it's a directory: ${absoluteInputPath}`)
+        logger?.error(`Skipping asset, it's a directory: ${absoluteInputPath}`)
         continue
       }
 
@@ -446,7 +453,7 @@ function renderHTMLPage(
 
   const context: Context = {
     site: {
-      url: options.baseURL,
+      url: options.baseURL || "",
       date: new Date(),
     },
     page: {
@@ -483,7 +490,7 @@ function renderHTMLPage(
     try {
       context.page.data = JSON.parse(element.textContent.trim())
     } catch (err: unknown) {
-      console.error("Error parsing buildtime data\n> " + err)
+      options.logger?.error("Error parsing buildtime data\n> " + err)
     }
 
     element.remove()
@@ -530,7 +537,7 @@ function renderHTMLPage(
     }
 
     if (!fs.existsSync(src)) {
-      console.error(`Could not find include: ${src}`)
+      options.logger?.error(`Could not find include: ${src}`)
       element.remove()
       continue
     }
@@ -561,7 +568,7 @@ function renderHTMLPage(
     try {
       eval(element.textContent)
     } catch (err: unknown) {
-      console.error("Error executing buildtime script\n> " + err)
+      options.logger?.error("Error executing buildtime script\n> " + err)
     }
 
     element.remove()
@@ -589,7 +596,14 @@ function renderHTMLPage(
     dependencies,
     context.page.data,
   )
-  collectAssetsFromDocument(options.inputDirectory, options.outputDirectory, outputFiles, dependencies, document)
+  collectAssetsFromDocument(
+    options.inputDirectory,
+    options.outputDirectory,
+    outputFiles,
+    dependencies,
+    document,
+    options.logger,
+  )
   collectInlineCodeFromDocument(options.outputDirectory, outputFiles, document)
 
   // Tidy the document.
@@ -633,10 +647,10 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
     const outputFiles: OutputFiles = new Map()
 
-    console.time("Built")
+    options.logger?.time("Built")
 
     if (isCleanBuild) {
-      for await (const file of scanDirectory(options.inputDirectory)) {
+      for await (const file of scan(options.inputDirectory)) {
         changedFilePaths.push(file.path)
       }
     }
@@ -718,7 +732,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
               const absoluteInputPath = path.join(options.inputDirectory, relativeInputPath)
 
               if (fs.statSync(absoluteInputPath).isDirectory()) {
-                for (const file of scanDirectory(absoluteInputPath)) {
+                for (const file of scan(absoluteInputPath)) {
                   if (file.isDirectory) continue
 
                   outputFiles.set(file.path, {
@@ -814,7 +828,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
           const context: Context = {
             site: {
-              url: options.baseURL,
+              url: options.baseURL || "",
               date: new Date(),
             },
             page: {
@@ -846,14 +860,14 @@ export default async function staticbuild(options: StaticBuildOptions) {
       }
     }
 
-    console.log(" ")
+    options.logger?.info(" ")
 
-    console.timeEnd("Built")
+    options.logger?.timeEnd("Built")
 
-    console.time("Write")
+    options.logger?.time("Write")
 
     if (options.dryRun) {
-      console.log(" ")
+      options.logger?.info(" ")
     }
 
     for (const [_, file] of outputFiles) {
@@ -862,16 +876,16 @@ export default async function staticbuild(options: StaticBuildOptions) {
         : file.buffer
 
       if (options.dryRun) {
-        console.log("[fake_file_write]")
+        options.logger?.info("[fake_file_write]")
         if (isExternalFile(file)) {
-          console.log(" in: " + file.inputPath)
+          options.logger?.info(" in: " + file.inputPath)
         } else {
-          console.log(" in: " + `(buffer ${file.buffer.length} bytes)`)
+          options.logger?.info(" in: " + `(buffer ${file.buffer.length} bytes)`)
         }
 
-        console.log(" out: " + file.outputPath)
+        options.logger?.info(" out: " + file.outputPath)
 
-        console.log(" ")
+        options.logger?.info(" ")
       } else {
         assert(
           file.outputPath.startsWith(options.outputDirectory),
@@ -888,10 +902,10 @@ export default async function staticbuild(options: StaticBuildOptions) {
       }
     }
 
-    console.timeEnd("Write")
+    options.logger?.timeEnd("Write")
 
     if (options.check) {
-      console.log("Check")
+      options.logger?.info("Check")
 
       for (const [_, file] of outputFiles) {
         if (!file.outputPath.endsWith(".html")) continue
@@ -907,33 +921,33 @@ export default async function staticbuild(options: StaticBuildOptions) {
             const response = await fetch(href, { signal: AbortSignal.timeout(5000) })
 
             if (response.status < 200 || response.status > 299) {
-              console.log(`Response ${response.status}: ${href}`)
+              options.logger?.info(`Response ${response.status}: ${href}`)
             }
           } catch (err: unknown) {
-            console.log(`Timeout: ${href}`)
+            options.logger?.info(`Timeout: ${href}`)
           }
         }
       }
     }
 
-    console.log(`Count: ${outputFiles.size} file(s)`)
-    console.log(`Done (${new Date()})`)
+    options.logger?.info(`Count: ${outputFiles.size} file(s)`)
+    options.logger?.info(`Done (${new Date()})`)
   }
 
   await build()
 
   if (options.watch) {
-    console.log("---")
-    console.log("👀 Watching for changes...")
+    options.logger?.info("---")
+    options.logger?.info("👀 Watching for changes...")
 
     await watcher(options.inputDirectory, async (changedFilePaths) => {
-      console.log("---")
+      options.logger?.info("---")
 
       try {
         await build(changedFilePaths)
         reloader.reload()
       } catch (err) {
-        console.log("error:", err)
+        options.logger?.info("error:", err)
       }
     })
   }
