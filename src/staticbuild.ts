@@ -192,6 +192,9 @@ function getLayouts(inputDirectory: string): Templates {
 }
 
 function shouldSkipFilePath(relativeFilePath: string, ignoredPaths: string[] = []): boolean {
+  const filename = path.basename(relativeFilePath)
+  if (filename.startsWith("_")) return true
+
   for (const ignoredPath of ignoredPaths || []) {
     const normalizedIgnoredPath = path.normalize(ignoredPath)
 
@@ -528,24 +531,30 @@ function renderHTMLPage(
   while (includeStack.length) {
     const element = includeStack.pop()
     if (!element) break
-
+    
     const src = element.getAttribute("src")
-
+    
     if (!src) {
       element.remove()
       continue
     }
-
+    
+    if (!path.basename(src).startsWith("_")) {
+      options.logger?.error(`Included filenames must start with an underscore: ${path.basename(src)}`)
+      element.remove()
+      continue
+    }
+    
     if (!fs.existsSync(src)) {
       options.logger?.error(`Could not find include: ${src}`)
       element.remove()
       continue
     }
-
+    
     const includeContents = fs.readFileSync(src, "utf8")
     const includeDocument = parseHTML(includeContents)
     resolveAttributesToAbsoluteInputPaths(path.dirname(src), includeDocument)
-
+    
     const includeHtml = Mustache.render(includeDocument.toString(), {
       ...context,
       attributes: {
@@ -554,10 +563,10 @@ function renderHTMLPage(
         children: element.innerHTML,
       },
     })
-
-    includeStack.push(...Array.from(includeDocument.querySelectorAll("sb\\:include")))
-
+    
     element.replaceWith(includeHtml)
+    includeStack.push(...Array.from(document.querySelectorAll("sb\\:include")))
+    
     dependencies.add(src)
   }
 

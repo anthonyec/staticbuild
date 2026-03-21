@@ -49,8 +49,8 @@ function expectFilesEqual(actualFilePath: string, expectedFilePath: string) {
   }
 
   if (isDifferent) {
-    console.log(`\x1b[38;2;0;255;0mExpected:\n${actualContents}\x1b[0m`)
-    console.log(`\x1b[38;2;255;0;0mActual:\n${expectedContents}\x1b[0m`)
+    console.log(`\x1b[38;2;0;255;0mExpected:\n${expectedContents}\x1b[0m`)
+    console.log(`\x1b[38;2;255;0;0mActual:\n${actualContents}\x1b[0m`)
   }
 }
 
@@ -81,11 +81,17 @@ function expectDirectoriesEqual(actualDirectoryPath: string, expectedDirectoryPa
 async function test() {
   for (const directory of scan("./test", [], { recursive: false })) {
     if (!directory.isDirectory) continue
+    if (directory.name.startsWith("x_")) continue
 
     console.log(`Test: ${directory.name}`)
 
     const inputDirectory = path.join(directory.path, "input")
     const outputDirectory = path.join(directory.path, "output")
+
+    if (fs.existsSync(outputDirectory)) {
+      fs.rmSync(outputDirectory, { recursive: true })
+    }
+    
     await staticbuild({ inputDirectory, outputDirectory })
 
     const expectedDirectory = path.join(directory.path, "expected")
