@@ -5,6 +5,8 @@
   <br><br>
   A static site generator that isn't for you!
   <br><br>
+  <img src="https://github.com/anthonyec/staticbuild/actions/workflows/run-tests.yml/badge.svg">
+  <br><br>
 </div>
 
 `staticbuild` is a fast static file website generator with minimum support for anything other than my own stuff.
