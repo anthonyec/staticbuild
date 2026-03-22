@@ -327,7 +327,9 @@ function collectAssetsFromDocument(
   for (const element of document.querySelectorAll("*")) {
     for (const [name, value] of Object.entries(element.attributes)) {
       if (!value) {
-        logger?.info(`Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value is empty or non-existent`)
+        logger?.info(
+          `Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value is empty or non-existent`,
+        )
         continue
       }
 
@@ -337,7 +339,9 @@ function collectAssetsFromDocument(
       }
 
       if (!value.startsWith(inputDirectory)) {
-        logger?.info(`Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value does not start with input directory path`)
+        logger?.info(
+          `Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value does not start with input directory path`,
+        )
       }
 
       const absoluteInputPath = value
@@ -537,7 +541,7 @@ function renderHTMLPage(
 
   // Resolve and inline all `<sb:include>` tags.
   //
-  // This iteratively finds the first include element and replaces it with it's 
+  // This iteratively finds the first include element and replaces it with it's
   // rendered contents. This continues until no include elements are found. Nested
   // includes are handled naturally as newly inserted content is re-scanned.
   let currentIncludeElement = document.querySelector("sb\\:include")

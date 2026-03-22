@@ -76,7 +76,7 @@ async function main() {
     },
     { ...DEFAULT_ARGS },
   )
-  
+
   // Check that the first argument is a path and not a command.
   if (!inputDirectory) {
     stdout.write(`Error: Missing input directory.\n`)
