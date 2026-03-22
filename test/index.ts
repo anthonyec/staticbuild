@@ -3,6 +3,7 @@ import path from "node:path"
 import { performance } from "node:perf_hooks"
 
 import staticbuild, { StaticBuildOptions } from "../src/staticbuild"
+import { isKeyValuePair, isStringLiteral, parseArgv } from "../src/args"
 import { scan } from "../src/fs"
 import { stdout } from "node:process"
 
@@ -83,8 +84,28 @@ function expectDirectoriesEqual(actualDirectoryPath: string, expectedDirectoryPa
 }
 
 async function test() {
-  // Remove the first 2 arguments that nodejs provides.
-  const args = process.argv.splice(2, process.argv.length)
+  const options = {
+    spec: "",
+  }
+
+  for (const arg of parseArgv(process.argv)) {
+    if (isStringLiteral(arg)) {
+      throw Error(`Error: Unknown argument ${arg.value}.\n`)
+    }
+
+    if (isKeyValuePair(arg)) {
+      switch (arg.key) {
+        case "spec": {
+          options.spec = arg.value
+          continue
+        }
+
+        default: {
+          throw Error(`Error: Unknown argument ${arg.key}.\n`)
+        }
+      }
+    }
+  }
 
   const timings: Record<string, { startTime: number; endTime: number }> = {}
 
@@ -102,7 +123,7 @@ async function test() {
   }
 
   for (const directory of scan("./test", [], { recursive: false })) {
-    if (args[0] && args[0] !== directory.name) continue
+    if (options.spec && options.spec !== directory.name) continue
 
     if (!directory.isDirectory) continue
 
