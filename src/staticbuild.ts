@@ -47,7 +47,7 @@ const TEMPLATE_FUNCTIONS: Context["fn"] = {
   },
 }
 
-interface StaticBuildOptions {
+export interface StaticBuildOptions {
   /** Specify an input folder containing website source files */
   inputDirectory: string
   /** Specify an output folder for the website to be built to */
@@ -326,9 +326,19 @@ function collectAssetsFromDocument(
   // if this is done! ~600ms to ~130ms!
   for (const element of document.querySelectorAll("*")) {
     for (const [name, value] of Object.entries(element.attributes)) {
-      if (!value) continue
-      if (!value.includes("/")) continue
-      if (!value.startsWith(inputDirectory)) continue
+      if (!value) {
+        logger?.info(`Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value is empty or non-existent`)
+        continue
+      }
+
+      if (!value.includes("/")) {
+        logger?.info(`Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value does not contain \"/\"`)
+        continue
+      }
+
+      if (!value.startsWith(inputDirectory)) {
+        logger?.info(`Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value does not start with input directory path`)
+      }
 
       const absoluteInputPath = value
 
@@ -338,7 +348,7 @@ function collectAssetsFromDocument(
       }
 
       if (fs.statSync(absoluteInputPath).isDirectory()) {
-        logger?.error(`Skipping asset, it's a directory: ${absoluteInputPath}`)
+        logger?.error(`Skipping asset, path is a directory: ${absoluteInputPath}`)
         continue
       }
 
@@ -474,7 +484,7 @@ function renderHTMLPage(
 
   if (options.watch) {
     preTemplateDocument.append(
-      `<sb:include src="./node_modules/@anthonyec/staticbuild/dist/partials/reloader.html" port="${reloader.getPort()}" />`,
+      `<sb:include src="./node_modules/@anthonyec/staticbuild/dist/partials/_reloader.html" port="${reloader.getPort()}" />`,
     )
   }
 
@@ -525,48 +535,48 @@ function renderHTMLPage(
   let document = parseHTML(html)
   resolveAttributesToAbsoluteInputPaths(currentDirectory, document)
 
-  // Import all the include tags recursively.
-  const includeStack = Array.from(document.querySelectorAll("sb\\:include"))
+  // Resolve and inline all `<sb:include>` tags.
+  //
+  // This iteratively finds the first include element and replaces it with it's 
+  // rendered contents. This continues until no include elements are found. Nested
+  // includes are handled naturally as newly inserted content is re-scanned.
+  let currentIncludeElement = document.querySelector("sb\\:include")
 
-  while (includeStack.length) {
-    const element = includeStack.pop()
-    if (!element) break
-    
-    const src = element.getAttribute("src")
-    
+  while (currentIncludeElement) {
+    const src = currentIncludeElement.getAttribute("src")
+
     if (!src) {
-      element.remove()
-      continue
+      currentIncludeElement.remove()
+      break
     }
-    
+
     if (!path.basename(src).startsWith("_")) {
       options.logger?.error(`Included filenames must start with an underscore: ${path.basename(src)}`)
-      element.remove()
-      continue
+      currentIncludeElement.remove()
+      break
     }
-    
+
     if (!fs.existsSync(src)) {
       options.logger?.error(`Could not find include: ${src}`)
-      element.remove()
-      continue
+      currentIncludeElement.remove()
+      break
     }
-    
+
     const includeContents = fs.readFileSync(src, "utf8")
     const includeDocument = parseHTML(includeContents)
     resolveAttributesToAbsoluteInputPaths(path.dirname(src), includeDocument)
-    
+
     const includeHtml = Mustache.render(includeDocument.toString(), {
       ...context,
       attributes: {
-        ...element.attributes,
-        uid: hash(src + includeStack.length),
-        children: element.innerHTML,
+        ...currentIncludeElement.attributes,
+        children: currentIncludeElement.innerHTML,
       },
     })
-    
-    element.replaceWith(includeHtml)
-    includeStack.push(...Array.from(document.querySelectorAll("sb\\:include")))
-    
+
+    currentIncludeElement.replaceWith(includeHtml)
+    currentIncludeElement = document.querySelector("sb\\:include")
+
     dependencies.add(src)
   }
 
