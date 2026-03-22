@@ -1,4 +1,4 @@
-import fs from "node:fs"
+import fs, { cpSync } from "node:fs"
 import path from "node:path"
 import { performance } from "node:perf_hooks"
 
@@ -86,6 +86,7 @@ function expectDirectoriesEqual(actualDirectoryPath: string, expectedDirectoryPa
 async function test() {
   const options = {
     spec: "",
+    updateSnapshots: false,
   }
 
   for (const arg of parseArgv(process.argv)) {
@@ -97,6 +98,12 @@ async function test() {
       switch (arg.key) {
         case "spec": {
           options.spec = arg.value
+          continue
+        }
+
+        case "update":
+        case "u": {
+          options.updateSnapshots = true
           continue
         }
 
@@ -143,9 +150,15 @@ async function test() {
 
     try {
       const expectedDirectory = path.join(directory.path, "expected")
-      expectDirectoriesEqual(outputDirectory, expectedDirectory)
 
-      stdout.write(`\x1b[38;2;0;255;0m[pass]\x1b[0m ${directory.name} \n`)
+      if (options.updateSnapshots) {
+        stdout.write(`\x1b[38;2;0;200;255m[snap]\x1b[0m ${directory.name} \n`)
+        fs.rmSync(expectedDirectory, { recursive: true })
+        cpSync(outputDirectory, expectedDirectory, { recursive: true })
+      } else {
+        expectDirectoriesEqual(outputDirectory, expectedDirectory)
+        stdout.write(`\x1b[38;2;0;255;0m[pass]\x1b[0m ${directory.name} \n`)
+      }
     } catch (err: unknown) {
       stdout.write(`\x1b[38;2;255;0;0m[fail]\x1b[0m ${directory.name} \n`)
       throw err
