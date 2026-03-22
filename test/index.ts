@@ -18,8 +18,11 @@ function expectFilesEqual(actualFilePath: string, expectedFilePath: string) {
   expectFileExists(actualFilePath)
   expectFileExists(expectedFilePath)
 
-  const actualContents = fs.readFileSync(actualFilePath, "utf8")
-  const expectedContents = fs.readFileSync(expectedFilePath, "utf8")
+  // @TODO: These are trimmed to avoid checking for newline differences at the
+  // end of a file, but actually it might be nice to actually add a newline
+  // when generating to be good computer citizens.
+  const actualContents = fs.readFileSync(actualFilePath, "utf8").trim()
+  const expectedContents = fs.readFileSync(expectedFilePath, "utf8").trim()
 
   let isDifferent: boolean = false
 
@@ -124,7 +127,7 @@ async function test() {
       stdout.write(`\x1b[38;2;0;255;0m[pass]\x1b[0m ${directory.name} \n`)
     } catch (err: unknown) {
       stdout.write(`\x1b[38;2;255;0;0m[fail]\x1b[0m ${directory.name} \n`)
-      break
+      throw err
     }
 
     for (const [name, time] of Object.entries(timings)) {

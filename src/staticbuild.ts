@@ -411,7 +411,11 @@ function collectInlineCodeFromDocument(
 
   for (const element of document.querySelectorAll("style, script:not([src])")) {
     if (element.hasAttribute("sb:buildtime")) continue
-    if (element.hasAttribute("sb:ignore")) continue
+
+    if (element.hasAttribute("sb:ignore")) {
+      element.removeAttribute("sb:ignore")
+      continue
+    }
 
     const textContent = element.textContent
     element.remove()
