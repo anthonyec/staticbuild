@@ -333,8 +333,20 @@ function collectAssetsFromDocument(
         continue
       }
 
-      if (!value.includes("/")) {
-        logger?.info(`Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value does not contain \"/\"`)
+      if (!element.tagName.startsWith("SB:") && !(name.includes("src") || name.includes("href"))) {
+        logger?.info(`Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, attribute is unsupported`)
+        continue
+      }
+
+      if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("mailto:")) {
+        logger?.info(`Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value is an external link`)
+        continue
+      }
+
+      if (!value.includes(".")) {
+        logger?.info(
+          `Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value does not extension \"/\"`,
+        )
         continue
       }
 
@@ -352,7 +364,7 @@ function collectAssetsFromDocument(
       }
 
       if (fs.statSync(absoluteInputPath).isDirectory()) {
-        logger?.error(`Skipping asset, path is a directory: ${absoluteInputPath}`)
+        logger?.warn(`Skipping asset, path is a directory: ${absoluteInputPath}`)
         continue
       }
 
