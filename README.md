@@ -222,6 +222,36 @@ Once defined, the data can then be accessed using Mustache in the same HTML page
 
 Build time data will be parsed before any parsing of the HTML page has happened.
 
+## Tests
+
+There are snapshot tests that take files as input and check that running `staticbuild` produced the expected output.
+
+Each test case is a subdirectory in `./tests`. Running the test command will run all the test cases.
+
+```sh
+npm t
+```
+
+To run a specific test case, use the `--spec` argument and the name of a test case subdirectory.
+
+```sh
+npm t -- --spec basic_includes
+```
+
+When creating or modifying tests, you can update the expected snapshot automatically using the `--update` argument. This will save the output as the expected. Make sure the output is what you actually expect!
+
+```sh
+npm t -- -u # This is the shortname for `update`.
+```
+
+This can be used in combination with the `--spec` argument. The following command updates the expected output for one spec.
+
+```sh
+npm t -- --spec basic_includes -u
+```
+
+To skip a test case, name a subdirectory with a "x\_" prefix. For example, "x_basic_page" will skip the "basic_page" test.
+
 ## AI Usage
 
 AI training be gone! I do not give you permission to train on this codebase.
