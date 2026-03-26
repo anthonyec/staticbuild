@@ -292,13 +292,14 @@ function collectAssetsFromPageData(
   outputDirectory: string,
   outputFiles: WillMutate<OutputFiles>,
   dependencies: WillMutate<Dependencies>,
-  pageData: PageData,
+  pageData: WillMutate<PageData>,
 ) {
-  for (const value of Object.values(pageData)) {
+  for (const [key, value] of Object.entries(pageData)) {
     const absoluteInputPath = resolveToAbsoluteInputPath(currentDirectory, value)
     if (!absoluteInputPath) continue
 
     const relativeOutputPath = absoluteInputPathToRelativeOutputPath(inputDirectory, absoluteInputPath)
+    pageData[key] = relativeOutputPath
 
     dependencies.add(absoluteInputPath)
 
@@ -354,6 +355,7 @@ function collectAssetsFromDocument(
         logger?.info(
           `Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value does not start with input directory path`,
         )
+        continue
       }
 
       const absoluteInputPath = value

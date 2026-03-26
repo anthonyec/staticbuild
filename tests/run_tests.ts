@@ -53,7 +53,7 @@ function expectFilesEqual(actualFilePath: string, expectedFilePath: string) {
   if (isDifferent) {
     console.log(colorize(`Expected:\n${expectedContents}`, [0, 255, 0]))
     console.log(colorize(`Actual:\n${actualContents}`, [255, 0, 0]))
-    throw Error("Files are different")
+    throw Error("File contents are different")
   }
 }
 

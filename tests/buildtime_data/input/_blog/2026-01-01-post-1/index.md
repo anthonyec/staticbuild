@@ -8,4 +8,4 @@
 # Blog Post 1
 
 Data: {{page.data.entry_data_key}}
-Data asset: {{page.data.entry_data_asset}}
+Data asset: {{{page.data.entry_data_asset}}}
