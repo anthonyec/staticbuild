@@ -522,6 +522,7 @@ function renderHTMLPage(
   for (const element of preTemplateDocument.querySelectorAll("data[sb\\:buildtime]")) {
     try {
       context.page.data = JSON.parse(element.textContent.trim())
+      options.logger?.info(`Found page data for: ${absoluteFilePath}`)
     } catch (err: unknown) {
       options.logger?.error("Error parsing buildtime data\n> " + err)
     }

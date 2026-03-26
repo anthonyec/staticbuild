@@ -8,8 +8,6 @@ import { isKeyValuePair, isStringLiteral, parseArgv } from "../src/cli_args"
 import { scan } from "../src/fs"
 import { colorize } from "../src/cli_format"
 
-const SHOW_INFO_LOGS = false
-
 function expectFileExists(filePath: string) {
   if (!fs.existsSync(filePath)) {
     throw Error(`Expected "${filePath}" to exist but it does not`)
@@ -29,7 +27,6 @@ function expectFilesEqual(actualFilePath: string, expectedFilePath: string) {
   let isDifferent: boolean = false
 
   let index: number = 0
-  let line: number = 0
 
   while (index < Math.max(actualContents.length, expectedContents.length)) {
     const actualCharacter = actualContents[index]
@@ -88,6 +85,7 @@ async function test() {
   const options = {
     spec: "",
     updateSnapshots: false,
+    verbose: false,
   }
 
   for (const arg of parseArgv(process.argv)) {
@@ -108,6 +106,12 @@ async function test() {
           continue
         }
 
+        case "verbose":
+        case "v": {
+          options.verbose = true
+          continue
+        }
+
         default: {
           throw Error(`Error: Unknown argument ${arg.key}.\n`)
         }
@@ -119,7 +123,7 @@ async function test() {
 
   const logger: StaticBuildOptions["logger"] = {
     info: (...messages: unknown[]) =>
-      SHOW_INFO_LOGS ? stdout.write(colorize(`[info] ${messages.join(", ")}\n`, [100, 100, 100])) : null,
+      options.verbose ? stdout.write(colorize(`[info] ${messages.join(", ")}\n`, [100, 100, 100])) : null,
     warn: (...messages: unknown[]) => stdout.write(colorize(`[warn] ${messages.join(", ")}\n`, [100, 100, 100])),
     error: (...messages: unknown[]) => stdout.write(colorize(`[erro] ${messages.join(", ")}\n`, [100, 100, 100])),
     time: (name: string) => {

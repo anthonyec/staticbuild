@@ -1,0 +1,17 @@
+<data sb:buildtime>
+  {
+    "page_data_key": "page_data_value",
+    "page_data_asset": "./image.gif"
+  }
+</data>
+
+Index
+
+Data: {{page.data.page_data_key}}
+Data asset: {{page.data.page_data_asset}}
+
+{{#collection.blog}}
+  Path: {{path}}
+  Data: {{data.entry_data_key}}
+  Data asset: {{data.entry_data_asset}}
+{{/collection.blog}}
