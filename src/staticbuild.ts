@@ -900,15 +900,9 @@ export default async function staticbuild(options: StaticBuildOptions) {
       }
     }
 
-    options.logger?.info(" ")
-
     options.logger?.timeEnd("Built")
 
     options.logger?.time("Write")
-
-    if (options.dryRun) {
-      options.logger?.info(" ")
-    }
 
     for (const [_, file] of outputFiles) {
       const buffer: Buffer<ArrayBuffer> = isExternalFile(file)
@@ -924,8 +918,6 @@ export default async function staticbuild(options: StaticBuildOptions) {
         }
 
         options.logger?.info(" out: " + file.outputPath)
-
-        options.logger?.info(" ")
       } else {
         assert(
           file.outputPath.startsWith(options.outputDirectory),
