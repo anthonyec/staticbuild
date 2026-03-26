@@ -7,6 +7,7 @@ import type { StaticBuildOptions } from "./staticbuild"
 
 import { staticbuild } from "."
 import { isKeyValuePair, isStringLiteral, parseArgv } from "./cli_args"
+import { colorize } from "./cli_format"
 
 const ERROR_CODE = {
   SUCCESS: 0,
@@ -37,9 +38,9 @@ async function main() {
     logger: {
       info: () => {},
       warn: () => {},
-      error: console.error,
-      time: console.time,
-      timeEnd: console.timeEnd,
+      error: (...message: unknown[]) => console.error(colorize("[erro]", [255, 0, 0]), ...message),
+      time: (name: string) => console.time(colorize("[time] ", [100, 100, 100]) + name),
+      timeEnd: (name: string) => console.timeEnd(colorize("[time] ", [100, 100, 100]) + name),
     },
   }
 
@@ -85,8 +86,9 @@ async function main() {
         case "verbose":
         case "v": {
           if (options.logger) {
-            options.logger.info = console.log
-            options.logger.warn = console.warn
+            options.logger.info = (...message: unknown[]) =>
+              console.log(colorize("[info]", [100, 100, 100]), ...message)
+            options.logger.warn = (...message: unknown[]) => console.warn(colorize("[warn]", [255, 185, 0]), ...message)
           }
 
           continue

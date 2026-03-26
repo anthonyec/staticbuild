@@ -1,6 +1,6 @@
-(function() {
+;(function () {
   console.log("Hello")
-})();
-(function() {
+})()
+;(function () {
   console.log("World")
-})();
+})()
