@@ -1,11 +1,12 @@
-import fs, { cpSync } from "node:fs"
+import fs from "node:fs"
 import path from "node:path"
+import { stdout } from "node:process"
 import { performance } from "node:perf_hooks"
 
 import staticbuild, { StaticBuildOptions } from "../src/staticbuild"
-import { isKeyValuePair, isStringLiteral, parseArgv } from "../src/args"
+import { isKeyValuePair, isStringLiteral, parseArgv } from "../src/cli_args"
 import { scan } from "../src/fs"
-import { stdout } from "node:process"
+import { colorize } from "../src/cli_format"
 
 const SHOW_INFO_LOGS = false
 
@@ -53,8 +54,8 @@ function expectFilesEqual(actualFilePath: string, expectedFilePath: string) {
   }
 
   if (isDifferent) {
-    console.log(`\x1b[38;2;0;255;0mExpected:\n${expectedContents}\x1b[0m`)
-    console.log(`\x1b[38;2;255;0;0mActual:\n${actualContents}\x1b[0m`)
+    console.log(colorize(`Expected:\n${expectedContents}`, [0, 255, 0]))
+    console.log(colorize(`Actual:\n${actualContents}`, [255, 0, 0]))
     throw Error("Files are different")
   }
 }
@@ -118,9 +119,9 @@ async function test() {
 
   const logger: StaticBuildOptions["logger"] = {
     info: (...messages: unknown[]) =>
-      SHOW_INFO_LOGS ? stdout.write(`\x1b[38;2;100;100;100m[info] ${messages.join(", ")}\x1b[0m  \n`) : null,
-    warn: (...messages: unknown[]) => stdout.write(`\x1b[38;2;100;100;100m[warn] ${messages.join(", ")}\x1b[0m  \n`),
-    error: (...messages: unknown[]) => stdout.write(`\x1b[38;2;100;100;100m[erro] ${messages.join(", ")}\x1b[0m  \n`),
+      SHOW_INFO_LOGS ? stdout.write(colorize(`[info] ${messages.join(", ")}\n`, [100, 100, 100])) : null,
+    warn: (...messages: unknown[]) => stdout.write(colorize(`[warn] ${messages.join(", ")}\n`, [100, 100, 100])),
+    error: (...messages: unknown[]) => stdout.write(colorize(`[erro] ${messages.join(", ")}\n`, [100, 100, 100])),
     time: (name: string) => {
       timings[name] = { startTime: performance.now(), endTime: -1 }
     },
@@ -135,7 +136,7 @@ async function test() {
     if (!directory.isDirectory) continue
 
     if (directory.name.startsWith("x_")) {
-      stdout.write(`\x1b[38;2;100;100;100m[skip]\x1b[0m ${directory.name.replace(/^x_/, "")} \n`)
+      stdout.write(`${colorize("[skip]", [100, 100, 100])} ${directory.name.replace(/^x_/, "")} \n`)
       continue
     }
 
@@ -152,22 +153,22 @@ async function test() {
       const expectedDirectory = path.join(directory.path, "expected")
 
       if (options.updateSnapshots) {
-        stdout.write(`\x1b[38;2;0;200;255m[snap]\x1b[0m ${directory.name} \n`)
+        stdout.write(`${colorize("[snap]", [0, 200, 255])} ${directory.name} \n`)
         fs.rmSync(expectedDirectory, { recursive: true })
-        cpSync(outputDirectory, expectedDirectory, { recursive: true })
+        fs.cpSync(outputDirectory, expectedDirectory, { recursive: true })
       } else {
         expectDirectoriesEqual(outputDirectory, expectedDirectory)
-        stdout.write(`\x1b[38;2;0;255;0m[pass]\x1b[0m ${directory.name} \n`)
+        stdout.write(`${colorize("[pass]", [0, 255, 0])} ${directory.name} \n`)
       }
     } catch (err: unknown) {
-      stdout.write(`\x1b[38;2;255;0;0m[fail]\x1b[0m ${directory.name} \n`)
+      stdout.write(`${colorize("[fail]", [255, 0, 0])} ${directory.name} \n`)
       throw err
     }
 
     for (const [name, time] of Object.entries(timings)) {
       if (time.endTime === -1) continue
 
-      stdout.write(`\x1b[38;2;100;100;100m[time] ${name}: ${(time.endTime - time.startTime).toFixed(1)}ms\x1b[0m \n`)
+      stdout.write(colorize(`[time] ${name}: ${(time.endTime - time.startTime).toFixed(1)}\n`, [100, 100, 100]))
     }
   }
 }

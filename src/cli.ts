@@ -6,7 +6,7 @@ import { stdout } from "process"
 import type { StaticBuildOptions } from "./staticbuild"
 
 import { staticbuild } from "."
-import { isKeyValuePair, isStringLiteral, parseArgv } from "./args"
+import { isKeyValuePair, isStringLiteral, parseArgv } from "./cli_args"
 
 const ERROR_CODE = {
   SUCCESS: 0,
