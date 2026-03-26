@@ -20,7 +20,7 @@
     "build": "npm run copy && tsc",
     "watch": "npm run copy && tsc --watch",
     "copy": "node ./scripts/copy_partials.mjs",
-    "test": "ts-node ./test/index.ts",
+    "test": "ts-node ./tests/run_tests.ts",
     "format": "prettier --loglevel warn --write \"**/*.{md,ts,js}\""
   },
   "author": "Anthony Cossins",

@@ -129,7 +129,7 @@ async function test() {
     },
   }
 
-  for (const directory of scan("./test", [], { recursive: false })) {
+  for (const directory of scan("./tests", [], { recursive: false })) {
     if (options.spec && options.spec !== directory.name) continue
 
     if (!directory.isDirectory) continue
