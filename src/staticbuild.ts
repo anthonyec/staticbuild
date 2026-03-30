@@ -13,8 +13,7 @@ import { createReloader, Reloader } from "./reloader"
 const TEMPLATE_FUNCTIONS: Context["fn"] = {
   dateToISO8601: () => (text, subRender) => {
     function formatDateWithTemplate(template: string, date: Date) {
-      var specs = "YYYY:MM:DD:HH:mm:ss".split(":")
-      date = new Date(date || Date.now() - new Date().getTimezoneOffset() * 6e4)
+      const specs = "YYYY:MM:DD:HH:mm:ss".split(":")
 
       return date
         .toISOString()
