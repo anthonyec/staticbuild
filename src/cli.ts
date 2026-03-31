@@ -17,7 +17,7 @@ const ERROR_CODE = {
 
 function logUsage() {
   stdout.write(`🙅🏻‍♀️ staticbuild - a static site generator that isn't for you!\n\n`)
-  stdout.write(`Usage: staticbuild <inputDirectory> <outputDirectory> [--watch, --dry-run, --check]\n`)
+  stdout.write(`Usage: staticbuild <inputDirectory> <outputDirectory> [arguments]\n`)
 
   stdout.write(`\nArguments:\n`)
   stdout.write(`<inputDirectory>    Path to directory containing content\n`)
@@ -26,6 +26,8 @@ function logUsage() {
   stdout.write(`--dry-run           Prevent writing files to disk, instead logging the file list out\n`)
   stdout.write(`--check, -c         Perform a dead link check on the output files\n`)
   stdout.write(`--verbose, -v       Output all info and warning logs\n`)
+  stdout.write(`--ignore            List of start of paths to ignore\n`)
+  stdout.write(`--remap             Mapping of start of paths that will get renamed, e.g 'projects':'blog' \n`)
 }
 
 async function main() {
@@ -96,6 +98,21 @@ async function main() {
 
         case "ignore": {
           options.ignoredPaths = arg.value.split(",")
+          continue
+        }
+
+        case "remap": {
+          const pathRemaps: Record<string, string> = {}
+
+          for (const mapping of arg.value.split(",")) {
+            const [from, to] = mapping.split(":")
+            if (from === undefined || to === undefined) continue
+            if (pathRemaps[from]) continue
+
+            pathRemaps[path.join(options.outputDirectory, from)] = path.join(options.outputDirectory, to)
+          }
+
+          options.pathRemaps = pathRemaps
           continue
         }
 

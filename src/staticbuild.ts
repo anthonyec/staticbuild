@@ -56,6 +56,7 @@ export interface StaticBuildOptions {
   dryRun?: boolean
   check?: boolean
   ignoredPaths?: string[]
+  pathRemaps?: Record<string, string>
   baseURL?: string
 
   logger?: {
@@ -190,11 +191,20 @@ function getLayouts(inputDirectory: string): Templates {
   return templates
 }
 
+function replaceStart(text: string, searchValue: string, replaceValue: string): string {
+  if (text.startsWith(searchValue)) {
+    return replaceValue + text.slice(searchValue.length)
+  }
+
+  return text
+}
+
 function shouldSkipFilePath(
   relativeFilePath: string,
   ignoredPaths: string[] = [],
 ): [shouldSkip: boolean, reason: string] {
   const filename = path.basename(relativeFilePath)
+  if (filename === "_config.js") return [false, ""]
   if (filename.startsWith("_")) return [true, "underscore_prefix"]
 
   for (const ignoredPath of ignoredPaths || []) {
@@ -912,13 +922,20 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
     options.logger?.time("Write")
 
+    const pathRemaps: Exclude<StaticBuildOptions["pathRemaps"], undefined> = options.pathRemaps || {}
+
     for (const [_, file] of outputFiles) {
       const buffer: Buffer<ArrayBuffer> = isExternalFile(file)
         ? Buffer.from(fs.readFileSync(file.inputPath))
         : file.buffer
 
+      for (const [from, to] of Object.entries(pathRemaps)) {
+        file.outputPath = replaceStart(file.outputPath, from, to)
+      }
+
       if (options.dryRun) {
         options.logger?.info("[fake_file_write]")
+
         if (isExternalFile(file)) {
           options.logger?.info(" in: " + file.inputPath)
         } else {
