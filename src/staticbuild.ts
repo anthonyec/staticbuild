@@ -906,9 +906,15 @@ export default async function staticbuild(options: StaticBuildOptions) {
           collectCollectionDependencies(options.inputDirectory, fileContents, collectionNameToEntries, dependencies)
           inputDependencies.set(absoluteFilePath, dependencies)
 
+          const collectionEntry = getCollectionEntryFromPath(relativeFilePath)
+
+          const outputPath = collectionEntry
+            ? path.join(options.outputDirectory, collectionEntry.path, path.basename(absoluteFilePath))
+            : path.join(options.outputDirectory, relativeFilePath)
+
           outputFiles.set(fileID, {
             buffer: Buffer.from(html),
-            outputPath: path.join(options.outputDirectory, relativeFilePath),
+            outputPath,
           })
           break
         }
