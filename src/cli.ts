@@ -94,6 +94,11 @@ async function main() {
           continue
         }
 
+        case "ignore": {
+          options.ignoredPaths = arg.value.split(",")
+          continue
+        }
+
         default: {
           stdout.write(`Error: Unknown argument ${arg.key}\n`)
           return ERROR_CODE.CALLED_WITH_ILLEGAL_PARAMETERS

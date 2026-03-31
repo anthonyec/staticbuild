@@ -190,19 +190,22 @@ function getLayouts(inputDirectory: string): Templates {
   return templates
 }
 
-function shouldSkipFilePath(relativeFilePath: string, ignoredPaths: string[] = []): boolean {
+function shouldSkipFilePath(
+  relativeFilePath: string,
+  ignoredPaths: string[] = [],
+): [shouldSkip: boolean, reason: string] {
   const filename = path.basename(relativeFilePath)
-  if (filename.startsWith("_")) return true
+  if (filename.startsWith("_")) return [true, "underscore_prefix"]
 
   for (const ignoredPath of ignoredPaths || []) {
     const normalizedIgnoredPath = path.normalize(ignoredPath)
 
     if (relativeFilePath.startsWith(normalizedIgnoredPath)) {
-      return true
+      return [true, "ignored_path"]
     }
   }
 
-  return false
+  return [false, ""]
 }
 
 function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry | undefined {
@@ -680,8 +683,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
   const inputDependencies: InputDependencies = new Map()
   const collectionNameToEntries: CollectionEntries = {}
 
-  // @NOCHECKIN
-  options.ignoredPaths = ["./v/", "./_layouts", "./_partials", "./assets"]
+  const ignoredPaths = ["./_layouts", ...(options.ignoredPaths || [])]
 
   const build = async (changedFilePaths: string[] = []) => {
     const isCleanBuild = changedFilePaths.length === 0
@@ -749,7 +751,12 @@ export default async function staticbuild(options: StaticBuildOptions) {
       if (fs.statSync(absoluteFilePath).isDirectory()) continue
 
       const relativeFilePath = absoluteToRelativePath(options.inputDirectory, absoluteFilePath)
-      if (shouldSkipFilePath(relativeFilePath, options.ignoredPaths)) continue
+      const [shouldSkipFile, skipFileReason] = shouldSkipFilePath(relativeFilePath, ignoredPaths)
+
+      if (shouldSkipFile) {
+        options.logger?.info(`Skip file because ${skipFileReason}:`, relativeFilePath)
+        continue
+      }
 
       switch (path.extname(absoluteFilePath)) {
         case ".js": {
