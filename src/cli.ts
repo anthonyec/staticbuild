@@ -35,7 +35,7 @@ async function main() {
     inputDirectory: "",
     outputDirectory: "",
     baseURL:
-      (process.env.context === "production" ? process.env.URL : process.env.DEPLOY_PRIME_URL) ||
+      (process.env.context === "production" ? process.env.BASE_URL : process.env.DEPLOY_PRIME_URL) ||
       "http://localhost:8082",
     logger: {
       info: () => {},
@@ -144,6 +144,8 @@ async function main() {
   if (!fs.existsSync(options.outputDirectory)) {
     fs.mkdirSync(options.outputDirectory)
   }
+
+  options.logger?.info("Base URL:", options.baseURL)
 
   await staticbuild(options)
 }
