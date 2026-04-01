@@ -6,7 +6,7 @@ import Mustache, { Context } from "mustache"
 import * as markdown from "markdown-wasm"
 
 import { assert, assertNever } from "./assert"
-import { scan } from "./fs"
+import { requireUncached, scan } from "./fs"
 import { watcher } from "./watcher"
 import { createReloader, Reloader } from "./reloader"
 
@@ -56,7 +56,7 @@ export interface StaticBuildOptions {
   dryRun?: boolean
   check?: boolean
   ignoredPaths?: string[]
-  pathRemaps?: Record<string, string>
+  pathRemaps?: PathRemaps
   baseURL?: string
 
   logger?: {
@@ -67,6 +67,8 @@ export interface StaticBuildOptions {
     timeEnd: (name: string) => void
   }
 }
+
+type PathRemaps = Record<string, string>
 
 type UserConfig = {
   redirects?: Record<string, string>
@@ -144,11 +146,6 @@ function hash(value: string): string {
   return crypto.createHash("md5").update(value).digest("hex")
 }
 
-function requireUncached<T>(module: string): T {
-  delete require.cache[require.resolve(module)]
-  return require(module)
-}
-
 function resolveToAbsoluteInputPath(currentDirectory: string, value: unknown): string | undefined {
   if (!value) return
   if (typeof value !== "string") return
@@ -218,7 +215,7 @@ function shouldSkipFilePath(
   return [false, ""]
 }
 
-function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry | undefined {
+function getCollectionEntryFromPath(relativeFilePath: string, pathRemaps: PathRemaps): CollectionEntry | undefined {
   if (!relativeFilePath.startsWith("_")) return
 
   const [rawName, rawDateAndSlug = ""] = relativeFilePath.split("/")
@@ -230,7 +227,7 @@ function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry |
 
   return {
     title: slug,
-    path: path.join(collectionName, slug),
+    path: path.join(pathRemaps[collectionName] ?? collectionName, slug),
     relativeInputPath: relativeFilePath,
     date: new Date(date),
     collection: collectionName,
@@ -238,9 +235,13 @@ function getCollectionEntryFromPath(relativeFilePath: string): CollectionEntry |
   }
 }
 
-function absoluteInputPathToRelativeOutputPath(inputDirectory: string, absoluteInputPath: string): string {
+function absoluteInputPathToRelativeOutputPath(
+  inputDirectory: string,
+  absoluteInputPath: string,
+  pathRemaps: PathRemaps,
+): string {
   const relativeInputPath = path.relative(inputDirectory, absoluteInputPath)
-  const collectionEntry = getCollectionEntryFromPath(relativeInputPath)
+  const collectionEntry = getCollectionEntryFromPath(relativeInputPath, pathRemaps)
 
   if (collectionEntry) {
     const [, , ...rest] = relativeInputPath.split("/")
@@ -302,6 +303,7 @@ function collectAssetsFromPageData(
   currentDirectory: string,
   inputDirectory: string,
   outputDirectory: string,
+  pathRemaps: PathRemaps,
   outputFiles: WillMutate<OutputFiles>,
   dependencies: WillMutate<Dependencies>,
   pageData: WillMutate<PageData>,
@@ -310,7 +312,7 @@ function collectAssetsFromPageData(
     const absoluteInputPath = resolveToAbsoluteInputPath(currentDirectory, value)
     if (!absoluteInputPath) continue
 
-    const relativeOutputPath = absoluteInputPathToRelativeOutputPath(inputDirectory, absoluteInputPath)
+    const relativeOutputPath = absoluteInputPathToRelativeOutputPath(inputDirectory, absoluteInputPath, pathRemaps)
     pageData[key] = relativeOutputPath
 
     dependencies.add(absoluteInputPath)
@@ -326,10 +328,11 @@ function collectAssetsFromPageData(
 function collectAssetsFromDocument(
   inputDirectory: string,
   outputDirectory: string,
+  pathRemaps: PathRemaps,
+  logger: StaticBuildOptions["logger"],
   outputFiles: WillMutate<OutputFiles>,
   dependencies: WillMutate<Dependencies>,
   document: WillMutate<HTMLElement>,
-  logger: StaticBuildOptions["logger"],
 ) {
   const styles: Set<string> = new Set()
   const scripts: Set<string> = new Set()
@@ -382,7 +385,7 @@ function collectAssetsFromDocument(
         continue
       }
 
-      const relativeOutputPath = absoluteInputPathToRelativeOutputPath(inputDirectory, absoluteInputPath)
+      const relativeOutputPath = absoluteInputPathToRelativeOutputPath(inputDirectory, absoluteInputPath, pathRemaps)
       const fileExtension = path.extname(absoluteInputPath)
 
       // Make sure dependency is added before processing so that there is always
@@ -549,7 +552,7 @@ function renderHTMLPage(
 
   const currentDirectory = path.dirname(absoluteFilePath)
   const relativeInputDirectory = path.relative(options.inputDirectory, currentDirectory)
-  const collectionEntry = getCollectionEntryFromPath(relativeInputDirectory)
+  const collectionEntry = getCollectionEntryFromPath(relativeInputDirectory, options.pathRemaps || {})
 
   if (collectionEntry) {
     context.page.date = collectionEntry?.date
@@ -646,6 +649,7 @@ function renderHTMLPage(
     currentDirectory,
     options.inputDirectory,
     options.outputDirectory,
+    options.pathRemaps || {},
     outputFiles,
     dependencies,
     context.page.data,
@@ -653,10 +657,11 @@ function renderHTMLPage(
   collectAssetsFromDocument(
     options.inputDirectory,
     options.outputDirectory,
+    options.pathRemaps || {},
+    options.logger,
     outputFiles,
     dependencies,
     document,
-    options.logger,
   )
   collectInlineCodeFromDocument(options.outputDirectory, outputFiles, document)
 
@@ -814,7 +819,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
           const fileBasename = path.basename(absoluteFilePath)
           if (fileBasename !== "index.md") continue
 
-          const collectionEntry = getCollectionEntryFromPath(relativeFilePath)
+          const collectionEntry = getCollectionEntryFromPath(relativeFilePath, options.pathRemaps || {})
           if (!collectionEntry) continue
 
           const layouts = getLayouts(options.inputDirectory)
@@ -868,7 +873,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
             layouts,
           )
 
-          const collectionEntry = getCollectionEntryFromPath(relativeFilePath)
+          const collectionEntry = getCollectionEntryFromPath(relativeFilePath, options.pathRemaps || {})
 
           const outputPath = collectionEntry
             ? path.join(options.outputDirectory, collectionEntry.path, path.basename(absoluteFilePath))
@@ -906,7 +911,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
           collectCollectionDependencies(options.inputDirectory, fileContents, collectionNameToEntries, dependencies)
           inputDependencies.set(absoluteFilePath, dependencies)
 
-          const collectionEntry = getCollectionEntryFromPath(relativeFilePath)
+          const collectionEntry = getCollectionEntryFromPath(relativeFilePath, options.pathRemaps || {})
 
           const outputPath = collectionEntry
             ? path.join(options.outputDirectory, collectionEntry.path, path.basename(absoluteFilePath))
@@ -928,16 +933,10 @@ export default async function staticbuild(options: StaticBuildOptions) {
 
     options.logger?.time("Write")
 
-    const pathRemaps: Exclude<StaticBuildOptions["pathRemaps"], undefined> = options.pathRemaps || {}
-
     for (const [_, file] of outputFiles) {
       const buffer: Buffer<ArrayBuffer> = isExternalFile(file)
         ? Buffer.from(fs.readFileSync(file.inputPath))
         : file.buffer
-
-      for (const [from, to] of Object.entries(pathRemaps)) {
-        file.outputPath = replaceStart(file.outputPath, from, to)
-      }
 
       if (options.dryRun) {
         options.logger?.info("[fake_file_write]")

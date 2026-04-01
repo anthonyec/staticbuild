@@ -109,7 +109,7 @@ async function main() {
             if (from === undefined || to === undefined) continue
             if (pathRemaps[from]) continue
 
-            pathRemaps[path.join(options.outputDirectory, from)] = path.join(options.outputDirectory, to)
+            pathRemaps[from] = to
           }
 
           options.pathRemaps = pathRemaps

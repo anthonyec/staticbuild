@@ -5,7 +5,7 @@ import { performance } from "node:perf_hooks"
 
 import staticbuild, { StaticBuildOptions } from "../src/staticbuild"
 import { isKeyValuePair, isStringLiteral, parseArgv } from "../src/cli_args"
-import { scan } from "../src/fs"
+import { requireUncached, scan } from "../src/fs"
 import { colorize } from "../src/cli_format"
 
 function expectFileExists(filePath: string) {
@@ -151,7 +151,18 @@ async function test() {
       fs.rmSync(outputDirectory, { recursive: true })
     }
 
-    await staticbuild({ inputDirectory, outputDirectory, logger })
+    let buildArguments: StaticBuildOptions = { inputDirectory, outputDirectory, logger }
+
+    const argumentsFilePath = path.join(process.cwd(), directory.path, "arguments.js")
+
+    if (fs.existsSync(argumentsFilePath)) {
+      const args = requireUncached<StaticBuildOptions>(argumentsFilePath)
+      buildArguments = { ...buildArguments, ...args }
+
+      stdout.write(`${colorize(`[args] ${JSON.stringify(args)}`, [100, 100, 100])}\n`)
+    }
+
+    await staticbuild(buildArguments)
 
     try {
       const expectedDirectory = path.join(directory.path, "expected")
