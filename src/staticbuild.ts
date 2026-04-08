@@ -375,6 +375,10 @@ function collectAssetsFromDocument(
 
       const absoluteInputPath = value
 
+      // @TODO: This won't happen because of the the resolve function that will
+      // check if they exist before hand. Maybe resolving should not check if
+      // file exists? Or we resolve here instead? Or we only resolve known
+      // attributes? Life is hard.
       if (!fs.existsSync(absoluteInputPath)) {
         logger?.error(`Could not find asset: ${absoluteInputPath}`)
         continue
