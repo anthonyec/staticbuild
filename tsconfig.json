@@ -1,6 +1,8 @@
 {
   "extends": "@tsconfig/node24/tsconfig.json",
   "compilerOptions": {
+    "types": ["node"],
+    "rootDir": "./src",
     "outDir": "dist",
     "strict": true,
     "declaration": true,
