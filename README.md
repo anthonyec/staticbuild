@@ -55,15 +55,17 @@ npx http-server -c-1 ./dist -p 8081
 
 Use this tag to inline external HTML partials into a document.
 
+The included filename has to start with an underscore so that `staticbuild` can distinguish them from other HTML files used as pages.
+
 ```html
-<sb:include src="./_partials/logo.html" />
+<sb:include src="./_logo.html" />
 ```
 
-It's works like Mustache partials except you can place the partials files anywhere, and custom attributes can be passed
+Includes work like Mustache partials except you can place the partials files anywhere, and custom attributes can be passed
 into the template.
 
 ```html
-<sb:include src="./_partials/logo.html" size="big" title="Company Name" />
+<sb:include src="./_logo.html" size="big" title="Company Name" />
 ```
 
 Custom attributes can be found on the `attributes` object.
@@ -80,7 +82,7 @@ Custom attributes can be found on the `attributes` object.
 Children a `<sb:include>` tag can also be passed into a partial.
 
 ```html
-<sb:include src="./_partials/nav.html">
+<sb:include src="./_nav.html">
   <button>Option 1</button>
   <button>Option 2</button>
   <button>Option 3</button>
@@ -196,13 +198,13 @@ DOM API access is limited because execution happens within the Node.js process. 
 
 Data can be provided to the current HTML template using the `sb:buildtime` attribute on a `<data>` element.
 
-Provide data needs to a valid JSON object.
+Data needs to be a valid JSON object.
 
 ```html
 <data sb:buildtime> { "items": ["1", "2", "3"] } </data>
 ```
 
-Once defined, the data can then be accessed using Mustache in the same HTML page under the `page.data` field.
+Once defined, the data can be accessed using Mustache in the same HTML page under the `page.data` field.
 
 ```html
 <!-- This template: -->
@@ -224,9 +226,9 @@ Build time data will be parsed before any parsing of the HTML page has happened.
 
 ## Tests
 
-There are snapshot tests that take files as input and check that running `staticbuild` produced the expected output.
+There are snapshot tests that take files as input and check that running `staticbuild` produces the expected output.
 
-Each test case is a subdirectory in `./tests`. Running the test command will run all the test cases.
+Each subdirectory located inside `./tests` is a test case. Running the test command will run all the test cases.
 
 ```sh
 npm t
@@ -241,16 +243,16 @@ npm t -- --spec basic_includes
 When creating or modifying tests, you can update the expected snapshot automatically using the `--update` argument. This will save the output as the expected. Make sure the output is what you actually expect!
 
 ```sh
-npm t -- -u # This is the shortname for `update`.
+npm t -- --update
 ```
 
 This can be used in combination with the `--spec` argument. The following command updates the expected output for one spec.
 
 ```sh
-npm t -- --spec basic_includes -u
+npm t -- --spec basic_includes -u # This uses the shortname for `--update`.
 ```
 
-To skip a test case, name a subdirectory with a "x\_" prefix. For example, "x_basic_page" will skip the "basic_page" test.
+To skip a test case, prefix a subdirectory "x\_". For example, "x_basic_page" will skip the "basic_page" test.
 
 ## AI Usage
 
