@@ -341,39 +341,47 @@ function collectAssetsFromDocument(
   // we could keep a list and reuse it here. IT will be a big speed improvement
   // if this is done! ~600ms to ~130ms!
   for (const element of document.querySelectorAll("*")) {
-    for (const [name, value] of Object.entries(element.attributes)) {
-      if (!value) {
+    for (const [attributeName, attributeValue] of Object.entries(element.attributes)) {
+      if (!attributeValue) {
         logger?.info(
-          `Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value is empty or non-existent`,
+          `Skipping "${attributeName}" attribute on <${element.tagName.toLowerCase()}>, value is empty or non-existent`,
         )
         continue
       }
 
-      if (!element.tagName.startsWith("SB:") && !(name.includes("src") || name.includes("href"))) {
-        logger?.info(`Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, attribute is unsupported`)
-        continue
-      }
-
-      if (value.startsWith("http://") || value.startsWith("https://") || value.startsWith("mailto:")) {
-        logger?.info(`Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value is an external link`)
-        continue
-      }
-
-      if (!value.includes(".")) {
+      if (!element.tagName.startsWith("SB:") && !(attributeName.includes("src") || attributeName.includes("href"))) {
         logger?.info(
-          `Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value does not extension \"/\"`,
+          `Skipping "${attributeName}" attribute on <${element.tagName.toLowerCase()}>, attribute is unsupported`,
         )
         continue
       }
 
-      if (!value.startsWith(inputDirectory)) {
+      if (
+        attributeValue.startsWith("http://") ||
+        attributeValue.startsWith("https://") ||
+        attributeValue.startsWith("mailto:")
+      ) {
         logger?.info(
-          `Skipping "${name}" attribute on <${element.tagName.toLowerCase()}>, value does not start with input directory path`,
+          `Skipping "${attributeName}" attribute on <${element.tagName.toLowerCase()}>, value is an external link`,
         )
         continue
       }
 
-      const absoluteInputPath = value
+      if (!attributeValue.includes(".")) {
+        logger?.info(
+          `Skipping "${attributeName}" attribute on <${element.tagName.toLowerCase()}>, value does not extension \"/\"`,
+        )
+        continue
+      }
+
+      if (!attributeValue.startsWith(inputDirectory)) {
+        logger?.info(
+          `Skipping "${attributeName}" attribute on <${element.tagName.toLowerCase()}>, value does not start with input directory path`,
+        )
+        continue
+      }
+
+      const absoluteInputPath = attributeValue
 
       // @TODO: This won't happen because of the the resolve function that will
       // check if they exist before hand. Maybe resolving should not check if
@@ -412,12 +420,24 @@ function collectAssetsFromDocument(
 
         default: {
           if (fileExtension === ".svg" && element.hasAttribute("sb:inline")) {
-            const svg = fs.readFileSync(absoluteInputPath, "utf8")
-            element.replaceWith(svg)
+            const svgContents = fs.readFileSync(absoluteInputPath, "utf8")
+
+            const svgDocument = parseHTML(svgContents)
+            const svgElement = svgDocument.querySelector("svg")
+            if (!svgElement) continue
+
+            for (const className of element.classList.values()) {
+              svgElement.classList.add(className)
+            }
+
+            element.replaceWith(svgElement)
             continue
           }
 
-          element.setAttribute(name, path.join("/", relativeOutputPath))
+          // At this point, attribute name represents an attribute that contains
+          // a path because anything else is early returned above. For example,
+          // the attribute name could be `src` or `href`.
+          element.setAttribute(attributeName, path.join("/", relativeOutputPath))
 
           const fileID = hash(absoluteInputPath)
           outputFiles.set(fileID, {
