@@ -2,7 +2,7 @@ import * as fs from "node:fs"
 import * as path from "node:path"
 import * as crypto from "node:crypto"
 import { HTMLElement, parse as parseHTML } from "node-html-parser"
-import Mustache, { Context } from "mustache"
+import Mustache from "mustache"
 import * as markdown from "markdown-wasm"
 
 import { assert, assertNever } from "./assert"
@@ -117,6 +117,7 @@ type CollectionEntries = { [name: CollectionName]: CollectionEntry[] }
 type MustacheFunction = () => (text: string, subRender: (template: string) => string) => string
 
 type Context = {
+  uid: string
   site: {
     url: string
     date: Date
@@ -526,6 +527,7 @@ function renderHTMLPage(
   const dependencies: Set<string> = new Set()
 
   const context: Context = {
+    uid: hash(absoluteFilePath),
     site: {
       url: options.baseURL || "",
       date: new Date(),
@@ -604,6 +606,8 @@ function renderHTMLPage(
   // includes are handled naturally as newly inserted content is re-scanned.
   let currentIncludeElement = document.querySelector("sb\\:include")
 
+  let includeCount = 0
+
   while (currentIncludeElement) {
     const src = currentIncludeElement.getAttribute("src")
 
@@ -630,6 +634,7 @@ function renderHTMLPage(
 
     const includeHtml = Mustache.render(includeDocument.toString(), {
       ...context,
+      uid: hash(absoluteFilePath + includeCount),
       attributes: {
         ...currentIncludeElement.attributes,
         children: currentIncludeElement.innerHTML,
@@ -640,6 +645,7 @@ function renderHTMLPage(
     currentIncludeElement = document.querySelector("sb\\:include")
 
     dependencies.add(src)
+    includeCount++
   }
 
   // Execute buildtime script tags.
@@ -914,6 +920,7 @@ export default async function staticbuild(options: StaticBuildOptions) {
         case ".xml": {
           const fileContents = fs.readFileSync(absoluteFilePath, "utf8")
           const context: Context = {
+            uid: fileID,
             site: {
               url: options.baseURL || "",
               date: new Date(),
